@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Environments
+.env
+.env.*
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# Datasets and generated training data
+data/dataset_raw/
+data/dataset_work/
+data/dataset_train/
+data/basicmodel_m_lbs_10_207_0_v1.0.0.pkl
+data/example/
+
+# Binary artifacts not distributed with the repository
+*.pkl
+*.joblib
+*.npy
+*.npz
+
+# New training outputs
+checkpoints/retrained/
+
+# Experiment outputs
+results/
+wandb/
+runs/
+logs/
+sector_logs/
+*.log
+
+# Videos
+*.mp4
+*.avi
+*.mov
+*.gif
+
+# Local maintenance files
+dbran_inventory.txt
+.path_migration_backup_v1/
+.route_update_backup_v1/
+
+# Operating systems
+.DS_Store
+Thumbs.db
