@@ -331,9 +331,7 @@ The next repository updates will focus on:
 
 ## Acknowledgments
 
-This work builds on the TransPose sparse-IMU pose-estimation pipeline and its supporting articulation and SMPL utilities.
 
-The original TransPose pose stages are replaced by the distributed D-BRAN architecture, while the original translation branches are retained in the current full pipeline.
 
 ---
 
