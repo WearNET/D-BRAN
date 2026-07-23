@@ -72,13 +72,13 @@ from tqdm import tqdm
 
 
 # Optional robustness hook. If it is not available, the profiler still works.
-try:
-    from robustness_full_pipeline_hook import install_fault_injection
+# try:
+#     from robustness_full_pipeline_hook import install_fault_injection
 
-    install_fault_injection()
-    print("[info] robustness_full_pipeline_hook installed.")
-except Exception as exc:
-    print(f"[info] robustness_full_pipeline_hook not installed or skipped: {exc}")
+#     install_fault_injection()
+#     print("[info] robustness_full_pipeline_hook installed.")
+# except Exception as exc:
+#     print(f"[info] robustness_full_pipeline_hook not installed or skipped: {exc}")
 
 from config import paths, joint_set, vel_scale
 from net import TransPoseNet
