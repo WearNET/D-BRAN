@@ -56,3 +56,7 @@ dbran_inventory.txt
 # Operating systems
 .DS_Store
 Thumbs.db
+
+# Xsens
+native/xsens_bridge/build/
+native/xsens_bridge/data/logs/
