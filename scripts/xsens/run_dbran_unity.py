@@ -15,7 +15,9 @@ This script keeps the validated live chain:
 
 Start the native Xsens bridge first, then this script, and finally press Play
 in the TransPose Unity Example scene when the script waits for Unity. The
-stream runs continuously until the user presses Ctrl+C.
+stream runs continuously until the user presses Ctrl+C. The validated
+runtime settings are built in as defaults, so no command-line arguments are
+required for the normal D-BRAN project setup.
 """
 
 from __future__ import annotations
@@ -272,7 +274,8 @@ def main() -> None:
         description=(
             "Run calibrated live Xsens data through D-BRAN and stream the "
             "result to the original TransPose Unity example."
-        )
+        ),
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=9763)
@@ -281,7 +284,7 @@ def main() -> None:
         "--calibration",
         default=str(PROJECT_ROOT / "configs" / "xsens_calibration.json"),
     )
-    parser.add_argument("--device", default="auto")
+    parser.add_argument("--device", default="cuda")
     parser.add_argument("--countdown", type=int, default=8)
     parser.add_argument(
         "--max_frames",
@@ -305,7 +308,19 @@ def main() -> None:
     parser.add_argument("--warmup_frames", type=int, default=30)
     parser.add_argument("--num_past_frame", type=int, default=20)
     parser.add_argument("--num_future_frame", type=int, default=5)
-    parser.add_argument("--cuda_streams", action="store_true")
+    parser.add_argument(
+        "--cuda_streams",
+        dest="cuda_streams",
+        action="store_true",
+        default=True,
+        help="Enable CUDA streams for the D-BRAN pipeline.",
+    )
+    parser.add_argument(
+        "--no_cuda_streams",
+        dest="cuda_streams",
+        action="store_false",
+        help="Disable CUDA streams for troubleshooting or CPU execution.",
+    )
     parser.add_argument("--unity_host", default="127.0.0.1")
     parser.add_argument("--unity_port", type=int, default=8888)
     args = parser.parse_args()
