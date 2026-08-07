@@ -105,6 +105,56 @@ def _parse_header(lines):
     return columns
 
 
+def _interpolate_missing_rows(data, take_name):
+    r"""
+    Linearly interpolate any fully/partially blank rows -- e.g. from a
+    momentary Motive skeleton-solve failure (marker occlusion) -- using the
+    nearest valid rows before and after. Linear interpolation of quaternion
+    components over a single 60Hz frame (~16.7ms) is an excellent
+    approximation of true SLERP, since adjacent frames are nearly
+    identical rotations, and quaternion_to_axis_angle() renormalizes
+    downstream regardless.
+
+    :param data: (N, num_columns) raw CSV data, NaN where a cell was blank.
+    :return: (N, num_columns) with no NaNs left.
+    """
+    missing = np.isnan(data).any(axis=1)
+    if not missing.any():
+        return data
+
+    data = data.copy()
+    n = data.shape[0]
+    missing_idx = np.where(missing)[0]
+    print(
+        f"  [warning] {take_name}: {len(missing_idx)} blank frame(s) "
+        f"detected (likely a momentary tracking-solve failure), "
+        f"interpolating: {missing_idx.tolist()}"
+    )
+
+    i = 0
+    while i < n:
+        if not missing[i]:
+            i += 1
+            continue
+        j = i
+        while j < n and missing[j]:
+            j += 1
+        before, after = i - 1, j
+        if before < 0 and after >= n:
+            raise RuntimeError(f"{take_name}: entire take is missing -- cannot interpolate.")
+        elif before < 0:
+            data[i:j] = data[after]
+        elif after >= n:
+            data[i:j] = data[before]
+        else:
+            for k in range(i, j):
+                t = (k - before) / (after - before)
+                data[k] = data[before] * (1 - t) + data[after] * t
+        i = j
+
+    return data
+
+
 def _zero_rest_pose(pose, ref_frame_idx):
     r"""
     Re-express joints 1..23 relative to their own rotation at
@@ -149,10 +199,15 @@ def load_take_csv(path, ref_frame_idx=30):
     with open(path, "r", newline="") as f:
         lines = [f.readline() for _ in range(8)]
         columns = _parse_header(lines)
-        data = np.loadtxt(f, delimiter=",", dtype=np.float64)
+        # genfromtxt (unlike loadtxt) turns blank cells into NaN instead of
+        # raising, so a momentary Motive tracking-solve failure doesn't
+        # crash the whole take.
+        data = np.genfromtxt(f, delimiter=",", dtype=np.float64, filling_values=np.nan)
 
     if data.ndim == 1:
         data = data[None, :]
+
+    data = _interpolate_missing_rows(data, path.name)
 
     n_frames = data.shape[0]
     bone_data = data[:, 2:]  # drop Frame, Time
