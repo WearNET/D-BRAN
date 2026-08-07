@@ -729,6 +729,7 @@ public:
         std::lock_guard<std::mutex> lock(m_mutex);
 
         m_frameBuffer.clear();
+        m_callbackAttempts = 0;
         m_completeFramesReceived = 0;
         m_incompleteCallbacks = 0;
         m_droppedBufferedFrames = 0;
@@ -763,6 +764,13 @@ public:
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         return m_completeFramesReceived;
+    }
+
+
+    unsigned long long callbackAttempts() const
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_callbackAttempts;
     }
 
 
@@ -923,14 +931,16 @@ protected:
 
         std::lock_guard<std::mutex> lock(m_mutex);
 
+        ++m_callbackAttempts;
+
         if (!completeFrame)
         {
             ++m_incompleteCallbacks;
             return;
         }
 
-        frame.callbackSequence =
-            ++m_completeFramesReceived;
+        ++m_completeFramesReceived;
+        frame.callbackSequence = m_callbackAttempts;
 
         if (m_frameBuffer.size() >=
             MAX_SYNCHRONIZED_QUEUE_SIZE)
@@ -966,6 +976,13 @@ private:
 
     mutable std::mutex m_mutex;
     std::deque<SynchronizedFrame> m_frameBuffer;
+
+    // Increments on every synchronized-callback attempt, complete or not.
+    // frame.callbackSequence is assigned from this counter (not from
+    // m_completeFramesReceived), so a gap in the sequence numbers the
+    // Python side sees corresponds to a real missed/incomplete slot,
+    // instead of being invisible because only successes were counted.
+    unsigned long long m_callbackAttempts = 0;
 
     unsigned long long m_completeFramesReceived = 0;
     unsigned long long m_incompleteCallbacks = 0;
@@ -1728,6 +1745,13 @@ int main()
         std::cout
             << "UDP send failures: "
             << udpSendFailures
+            << std::endl;
+
+        std::cout
+            << "Synchronized callback attempts: "
+            << synchronizedMtwCallback.callbackAttempts()
+            << " (this is the sequence-number space; gaps in it are what "
+            << "the Python side now detects)"
             << std::endl;
 
         std::cout
