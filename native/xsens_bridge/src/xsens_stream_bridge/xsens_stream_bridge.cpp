@@ -1294,6 +1294,22 @@ int main()
         // ----------------------------------------------------
         // Enter measurement mode.
         // ----------------------------------------------------
+
+        std::cout << "\nMeasurement will start in 5 seconds." << std::endl;
+
+        for (int remaining = 5; remaining > 0; --remaining)
+        {
+            std::cout
+                << "\rStarting measurement in "
+                << remaining
+                << " seconds... "
+                << std::flush;
+
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+
+        std::cout << "\rStarting measurement now.          " << std::endl;
+
         std::cout
             << "\nStarting measurement mode..."
             << std::endl;
