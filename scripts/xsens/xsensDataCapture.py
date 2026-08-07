@@ -321,10 +321,16 @@ def main() -> None:
             "host_unix_time_ns": [],
             "acc_calibrated": [],
             "ori_calibrated": [],
+            "is_filled": [],
         }
         receive_ms: List[float] = []
         frames_received = 0
+        frames_filled = 0
         first_time = None
+        last_sequence = None
+        last_acc = None
+        last_ori = None
+        last_host_time = None
 
         while True:
             if args.max_frames > 0 and frames_received >= args.max_frames:
@@ -341,21 +347,49 @@ def main() -> None:
             calibrated = calibration.apply_frame(frame, output_device="cpu", strict_device_ids=True)
             receive_ms.append((time.perf_counter() - t0) * 1000.0)
 
+            # If one or more packets were dropped, fill the hole with the
+            # last known-good frame instead of leaving a gap, so the saved
+            # sequence stays on a uniform 60Hz grid (index i <-> a fixed
+            # time step) even though a few frames are duplicates. Timestamps
+            # for filled frames are linearly interpolated between the last
+            # good frame and this one, not just copied.
+            if last_sequence is not None and frame.sequence > last_sequence + 1:
+                gap = frame.sequence - last_sequence - 1
+                for k in range(1, gap + 1):
+                    filled_time = last_host_time + round(
+                        (frame.host_unix_time_ns - last_host_time) * k / (gap + 1)
+                    )
+                    store["sequence"].append(last_sequence + k)
+                    store["host_unix_time_ns"].append(int(filled_time))
+                    store["acc_calibrated"].append(last_acc)
+                    store["ori_calibrated"].append(last_ori)
+                    store["is_filled"].append(True)
+                    frames_filled += 1
+                    frames_received += 1
+                    if first_time is None:
+                        first_time = filled_time
+
             store["sequence"].append(int(frame.sequence))
             store["host_unix_time_ns"].append(int(frame.host_unix_time_ns))
             store["acc_calibrated"].append(calibrated.acc)
             store["ori_calibrated"].append(calibrated.ori)
+            store["is_filled"].append(False)
 
             frames_received += 1
             if first_time is None:
                 first_time = frame.host_unix_time_ns
+
+            last_sequence = frame.sequence
+            last_acc = calibrated.acc
+            last_ori = calibrated.ori
+            last_host_time = frame.host_unix_time_ns
 
             elapsed_s = (frame.host_unix_time_ns - first_time) / 1e9
 
             if frames_received % args.print_every == 0:
                 rate = frames_received / elapsed_s if elapsed_s > 0 else 0.0
                 print(
-                    f"Frame {frames_received:6d} | elapsed={elapsed_s:7.2f}s | "
+                    f"Frame {frames_received:6d} (filled={frames_filled}) | elapsed={elapsed_s:7.2f}s | "
                     f"effective rate={rate:6.2f} Hz | sequence_gaps={receiver.sequence_gaps}"
                 )
 
@@ -376,7 +410,7 @@ def main() -> None:
     print("\n" + "=" * 76)
     print("CAPTURE SUMMARY")
     print("=" * 76)
-    print(f"  Frames captured:        {frames_received}")
+    print(f"  Frames captured:        {frames_received} ({frames_filled} filled from dropped packets)")
     print(f"  Wall-clock duration:    {total_elapsed_s:.2f} s")
     print(f"  Measured effective rate:{measured_rate:7.3f} Hz (target 60 Hz)")
     print(f"  Sequence gaps:          {sequence_gaps}")
@@ -384,6 +418,8 @@ def main() -> None:
         f"  Receive+calibrate time: mean={r_stats['mean']:.3f} ms | "
         f"p95={r_stats['p95']:.3f} ms | max={r_stats['max']:.3f} ms"
     )
+    if frames_received > 0:
+        print(f"  Filled fraction:        {100.0 * frames_filled / frames_received:.2f}%")
 
     destination = Path(args.save_pt).expanduser().resolve()
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -394,6 +430,8 @@ def main() -> None:
         "arguments": vars(args),
         "sequence": store["sequence"],
         "host_unix_time_ns": store["host_unix_time_ns"],
+        "is_filled": store["is_filled"],
+        "frames_filled": frames_filled,
         "acc_calibrated": torch.stack(store["acc_calibrated"]),
         "ori_calibrated": torch.stack(store["ori_calibrated"]),
     }
