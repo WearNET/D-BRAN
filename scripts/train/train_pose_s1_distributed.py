@@ -537,6 +537,34 @@ def train(args):
         pin_memory=use_pin_memory,
     )
 
+    pretrained_state_dict = None
+    if args.pretrained_checkpoint:
+        print(f"[Fine-tune] Loading pretrained checkpoint: {args.pretrained_checkpoint}")
+        ckpt = torch.load(args.pretrained_checkpoint, map_location=DEVICE, weights_only=False)
+
+        if ckpt.get("target") != args.target:
+            print(
+                f"  [warning] checkpoint target='{ckpt.get('target')}' does not match "
+                f"--target='{args.target}'"
+            )
+
+        for key in ("proj_dim", "rnn_hidden", "rnn_layers", "dropout"):
+            if key in ckpt and getattr(args, key) != ckpt[key]:
+                print(
+                    f"  [Fine-tune] overriding --{key}={getattr(args, key)} with "
+                    f"checkpoint value {ckpt[key]} (architecture must match to load weights)"
+                )
+                setattr(args, key, ckpt[key])
+
+        pretrained_state_dict = ckpt["model_state_dict"]
+
+        if args.learning_rate == LEARNING_RATE:
+            print(
+                f"  [Fine-tune] using the from-scratch default learning rate "
+                f"({LEARNING_RATE}) -- consider passing a lower --learning_rate "
+                f"(e.g. 1e-4) when fine-tuning on a small dataset."
+            )
+
     model = DistributedPoseS1NoClassifier(
         input_dim=24,
         proj_dim=args.proj_dim,
@@ -546,6 +574,10 @@ def train(args):
         bidirectional=True,
         output_dim=3,
     ).to(DEVICE)
+
+    if pretrained_state_dict is not None:
+        model.load_state_dict(pretrained_state_dict)
+        print("[Fine-tune] Pretrained weights loaded.")
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
     scheduler = torch.optim.lr_scheduler.StepLR(
@@ -692,6 +724,18 @@ def build_argparser():
         type=str,
         default=DEFAULT_SAVE_DIR,
         help="Directory where weights will be saved"
+    )
+
+    parser.add_argument(
+        "--pretrained_checkpoint",
+        type=str,
+        default="",
+        help=(
+            "Path to an existing best_pose_s1_no_classifier_<target>.pth "
+            "checkpoint to fine-tune from, e.g. "
+            "checkpoints/dbran_pose_s1_5branch_32h/left_arm/best_pose_s1_no_classifier_left_arm.pth. "
+            "Leave empty to train from scratch (default behavior, unchanged)."
+        ),
     )
 
     parser.add_argument(
