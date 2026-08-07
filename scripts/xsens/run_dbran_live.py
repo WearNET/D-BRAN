@@ -342,6 +342,13 @@ def main() -> None:
     calibration_path = Path(args.calibration).expanduser().resolve()
     calibration = XsensCalibration.load(calibration_path)
 
+    if device.type == "cuda":
+        # The online window shape (num_past_frame + 1 + num_future_frame,
+        # fixed per run) never changes between frames, so let cuDNN benchmark
+        # and cache the fastest algorithm for it instead of picking heuristically
+        # on every call.
+        torch.backends.cudnn.benchmark = True
+
     print("=" * 80)
     print("D-BRAN LIVE XSENS INFERENCE")
     print("=" * 80)
@@ -349,6 +356,7 @@ def main() -> None:
     print(f"Device:      {device}")
     if device.type == "cuda":
         print(f"GPU:         {torch.cuda.get_device_name(device)}")
+        print(f"cudnn.benchmark: {torch.backends.cudnn.benchmark}")
     print(f"UDP input:   {args.host}:{args.port}")
     print(
         f"Window:      {args.num_past_frame} past + current + "
