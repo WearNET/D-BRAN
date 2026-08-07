@@ -105,10 +105,42 @@ def _parse_header(lines):
     return columns
 
 
-def load_take_csv(path):
+def _zero_rest_pose(pose, ref_frame_idx):
+    r"""
+    Re-express joints 1..23 relative to their own rotation at
+    ``ref_frame_idx``, removing a constant per-joint offset between
+    Motive's rest-pose bone reference and SMPL's zero pose. The root
+    joint (0) is left untouched, since it must stay in the same global
+    reference frame across every take (matching the Xsens calibration).
+
+    :param pose: (N, 24, 3) axis-angle pose.
+    :param ref_frame_idx: frame index used as the per-joint zero
+        reference; should fall within a still portion of the take.
+    :return: (N, 24, 3) corrected axis-angle pose.
+    """
+    ref_frame_idx = min(ref_frame_idx, pose.shape[0] - 1)
+    n_frames = pose.shape[0]
+
+    r = art.math.axis_angle_to_rotation_matrix(
+        torch.from_numpy(pose[:, 1:].reshape(-1, 3))
+    ).view(n_frames, 23, 3, 3)
+    r_ref = r[ref_frame_idx]  # (23, 3, 3)
+    r_corrected = torch.matmul(r_ref.transpose(-1, -2).unsqueeze(0), r)
+    aa = art.math.rotation_matrix_to_axis_angle(
+        r_corrected.reshape(-1, 3, 3)
+    ).view(n_frames, 23, 3)
+
+    pose = pose.copy()
+    pose[:, 1:] = aa.numpy()
+    return pose
+
+
+def load_take_csv(path, ref_frame_idx=30):
     r"""
     Load a single Motive skeleton CSV export.
 
+    :param ref_frame_idx: frame used as the per-joint rest-pose reference
+        for ``_zero_rest_pose`` (default 30 = 0.5 s at 60 Hz).
     :return: (pose, tran)
         pose: (N, 24, 3) float32 axis-angle SMPL pose.
         tran: (N, 3) float32 root translation in meters, relative to frame 0.
@@ -160,6 +192,8 @@ def load_take_csv(path):
     if unmapped:
         print(f"  [warning] unmapped bones in {path.name} (ignored): {unmapped}")
 
+    pose = _zero_rest_pose(pose, ref_frame_idx)
+
     return pose, tran
 
 
@@ -175,6 +209,12 @@ def main():
         type=str,
         default=str(PROJECT_ROOT / "data" / "dataset_raw" / "dbran_optitrack" / "pose_gt.pt"),
     )
+    parser.add_argument(
+        "--ref_frame",
+        type=int,
+        default=30,
+        help="Frame used as the per-joint rest-pose zero reference (default: 30 = 0.5s at 60Hz).",
+    )
     args = parser.parse_args()
 
     csv_dir = Path(args.csv_dir)
@@ -184,7 +224,7 @@ def main():
 
     poses, trans, names = [], [], []
     for f in files:
-        pose, tran = load_take_csv(f)
+        pose, tran = load_take_csv(f, ref_frame_idx=args.ref_frame)
         poses.append(torch.from_numpy(pose))
         trans.append(torch.from_numpy(tran))
         names.append(f.stem)
