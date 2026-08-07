@@ -142,6 +142,14 @@ def load_take_csv(path):
         rot = attrs["Rotation"]
         q_xyzw = bone_data[:, [rot["X"], rot["Y"], rot["Z"], rot["W"]]]
         q_wxyz = torch.from_numpy(q_xyzw[:, [3, 0, 1, 2]]).float()
+
+        # Canonicalize sign: q and -q represent the same rotation, but
+        # acos() in quaternion_to_axis_angle does not know that. Without
+        # this, a near-identity rotation exported with w < 0 comes back as
+        # an axis-angle near 360 degrees instead of near 0.
+        sign = torch.where(q_wxyz[:, 0:1] < 0, -1.0, 1.0)
+        q_wxyz = q_wxyz * sign
+
         pose[:, joint_idx] = art.math.quaternion_to_axis_angle(q_wxyz).numpy()
 
         if "Position" in attrs:
@@ -181,10 +189,12 @@ def main():
         trans.append(torch.from_numpy(tran))
         names.append(f.stem)
 
-        frame0_deg = np.degrees(np.abs(pose[0]).max())
+        flat_idx = np.abs(pose[0]).argmax()
+        joint_idx, _ = np.unravel_index(flat_idx, pose[0].shape)
+        frame0_deg = np.degrees(np.abs(pose[0]).flat[flat_idx])
         print(
             f"{f.name}: {pose.shape[0]} frames, "
-            f"max joint rotation at frame 0 = {frame0_deg:.1f} deg "
+            f"max joint rotation at frame 0 = {frame0_deg:.1f} deg (SMPL joint {joint_idx}) "
             f"(should be small if the take starts near neutral stance)"
         )
 
