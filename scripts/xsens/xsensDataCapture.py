@@ -14,11 +14,18 @@ This combines the two steps we used to run separately:
        ~15-16ms/frame on inference alone and only sustained ~50Hz on long
        sessions).
 
+Capture length is bounded by --max_seconds (wall-clock, from real frame
+timestamps) rather than --max_frames, so the take stops at the same
+real-world instant as a fixed-duration Motive Take even if a few packets
+are dropped along the way -- it will simply end up with a few frames fewer
+than a perfect 60Hz stream, instead of running past when Motive already
+stopped recording.
+
 Usage:
     python .\\scripts\\xsens\\xsensDataCapture.py `
       --reference_role root `
       --countdown 8 `
-      --max_frames 10800 `
+      --max_seconds 180 `
       --save_pt .\\data\\dataset_raw\\dbran_optitrack\\captura_001.pt
 """
 
@@ -189,8 +196,24 @@ def main() -> None:
     parser.add_argument(
         "--max_frames",
         type=int,
-        default=10800,
-        help="Frames to capture after the countdown; 0 runs until Ctrl+C.",
+        default=0,
+        help=(
+            "Frame-count cap after the countdown; 0 = no cap (default). "
+            "Use --max_seconds instead so Xsens and Motive cover the same "
+            "real-world time window even if a few frames are dropped."
+        ),
+    )
+    parser.add_argument(
+        "--max_seconds",
+        type=float,
+        default=180.0,
+        help=(
+            "Wall-clock seconds to capture, measured from real frame "
+            "timestamps (not frame count); 0 = no time cap. This is the "
+            "recommended way to bound a take, so it stops at the same "
+            "real-world instant as a fixed-duration Motive Take regardless "
+            "of a few dropped packets."
+        ),
     )
     parser.add_argument("--print_every", type=int, default=300)
     parser.add_argument("--save_pt", type=str, required=True)
@@ -303,7 +326,11 @@ def main() -> None:
         frames_received = 0
         first_time = None
 
-        while args.max_frames == 0 or frames_received < args.max_frames:
+        while True:
+            if args.max_frames > 0 and frames_received >= args.max_frames:
+                print(f"\nReached --max_frames={args.max_frames}, stopping capture.")
+                break
+
             try:
                 t0 = time.perf_counter()
                 frame = receiver.receive(device="cpu")
@@ -323,13 +350,18 @@ def main() -> None:
             if first_time is None:
                 first_time = frame.host_unix_time_ns
 
+            elapsed_s = (frame.host_unix_time_ns - first_time) / 1e9
+
             if frames_received % args.print_every == 0:
-                elapsed_s = (frame.host_unix_time_ns - first_time) / 1e9
                 rate = frames_received / elapsed_s if elapsed_s > 0 else 0.0
                 print(
                     f"Frame {frames_received:6d} | elapsed={elapsed_s:7.2f}s | "
                     f"effective rate={rate:6.2f} Hz | sequence_gaps={receiver.sequence_gaps}"
                 )
+
+            if args.max_seconds > 0 and elapsed_s >= args.max_seconds:
+                print(f"\nReached --max_seconds={args.max_seconds:.1f}s, stopping capture.")
+                break
 
         sequence_gaps = receiver.sequence_gaps
 
