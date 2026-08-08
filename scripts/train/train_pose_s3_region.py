@@ -393,6 +393,39 @@ def train_one_target(args, target, train_files, test_files):
         pin_memory=torch.cuda.is_available(),
     )
 
+    pretrained_state_dict = None
+    if args.pretrained_checkpoint_dir:
+        pretrained_path = os.path.join(
+            args.pretrained_checkpoint_dir,
+            target,
+            f"best_pose_s3_five_branch_region_{target}.pth",
+        )
+        print(f"[Fine-tune] Loading pretrained checkpoint: {pretrained_path}")
+        ckpt = torch.load(pretrained_path, map_location=DEVICE, weights_only=False)
+
+        if ckpt.get("target") != target:
+            print(
+                f"  [warning] checkpoint target='{ckpt.get('target')}' does not "
+                f"match target='{target}'"
+            )
+
+        for key in ("proj_dim", "rnn_hidden", "rnn_layers", "dropout"):
+            if key in ckpt and getattr(args, key) != ckpt[key]:
+                print(
+                    f"  [Fine-tune] overriding --{key}={getattr(args, key)} with "
+                    f"checkpoint value {ckpt[key]} (architecture must match to load weights)"
+                )
+                setattr(args, key, ckpt[key])
+
+        pretrained_state_dict = ckpt["model_state_dict"]
+
+        if args.lr == 1e-3:
+            print(
+                "  [Fine-tune] using the from-scratch default learning rate "
+                "(1e-3) -- consider passing a lower --lr (e.g. 1e-4) when "
+                "fine-tuning on a small dataset."
+            )
+
     model = PoseS3FiveBranchRegionNet(
         input_dim=input_dim,
         output_dim=output_dim,
@@ -401,6 +434,10 @@ def train_one_target(args, target, train_files, test_files):
         rnn_layers=args.rnn_layers,
         dropout=args.dropout,
     ).to(DEVICE)
+
+    if pretrained_state_dict is not None:
+        model.load_state_dict(pretrained_state_dict)
+        print("[Fine-tune] Pretrained weights loaded.")
 
     parameter_count = sum(p.numel() for p in model.parameters())
 
@@ -580,6 +617,17 @@ def main():
     parser.add_argument("--train_list_file", required=True)
     parser.add_argument("--test_list_file", required=True)
     parser.add_argument("--save_dir", required=True)
+    parser.add_argument(
+        "--pretrained_checkpoint_dir",
+        default="",
+        help=(
+            "Root dir of existing Pose-S3 checkpoints to fine-tune from, e.g. "
+            "checkpoints/dbran_pose_s3_5branch_16h. The per-target path is "
+            "built automatically as <dir>/<target>/"
+            "best_pose_s3_five_branch_region_<target>.pth. Leave empty to "
+            "train from scratch (default behavior, unchanged)."
+        ),
+    )
 
     parser.add_argument("--proj_dim", type=int, default=16)
     parser.add_argument("--rnn_hidden", type=int, default=16)

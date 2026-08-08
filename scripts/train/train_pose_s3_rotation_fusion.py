@@ -315,6 +315,16 @@ def main():
     parser.add_argument("--train_pred_list_file", required=True)
     parser.add_argument("--test_pred_list_file", required=True)
     parser.add_argument("--save_dir", required=True)
+    parser.add_argument(
+        "--pretrained_checkpoint",
+        default="",
+        help=(
+            "Path to an existing best_pose_s3_five_branch_rotation_fusion.pth "
+            "to fine-tune from. There is only one fusion model (not per-"
+            "branch), so a single file path is unambiguous here. Leave empty "
+            "to train from scratch (default behavior, unchanged)."
+        ),
+    )
 
     parser.add_argument("--use_pose_s2_position", action="store_true")
 
@@ -407,6 +417,35 @@ def main():
 
     num_joints = output_dim // 6
 
+    pretrained_state_dict = None
+    if args.pretrained_checkpoint:
+        print(f"[Fine-tune] Loading pretrained checkpoint: {args.pretrained_checkpoint}")
+        ckpt = torch.load(args.pretrained_checkpoint, map_location=DEVICE, weights_only=False)
+
+        if ckpt.get("input_dim") not in (None, input_dim):
+            raise RuntimeError(
+                f"Checkpoint input_dim={ckpt.get('input_dim')} does not match "
+                f"the current dataset's input_dim={input_dim} -- check "
+                f"--use_pose_s2_position matches how the checkpoint was trained."
+            )
+
+        for key in ("proj_dim", "rnn_hidden", "rnn_layers", "dropout"):
+            if key in ckpt and getattr(args, key) != ckpt[key]:
+                print(
+                    f"  [Fine-tune] overriding --{key}={getattr(args, key)} with "
+                    f"checkpoint value {ckpt[key]} (architecture must match to load weights)"
+                )
+                setattr(args, key, ckpt[key])
+
+        pretrained_state_dict = ckpt["model_state_dict"]
+
+        if args.lr == 1e-3:
+            print(
+                "  [Fine-tune] using the from-scratch default learning rate "
+                "(1e-3) -- consider passing a lower --lr (e.g. 1e-4) when "
+                "fine-tuning on a small dataset."
+            )
+
     model = PoseS3FiveBranchFusionNet(
         input_dim=input_dim,
         output_dim=output_dim,
@@ -415,6 +454,10 @@ def main():
         rnn_layers=args.rnn_layers,
         dropout=args.dropout,
     ).to(DEVICE)
+
+    if pretrained_state_dict is not None:
+        model.load_state_dict(pretrained_state_dict)
+        print("[Fine-tune] Pretrained weights loaded.")
 
     parameter_count = sum(p.numel() for p in model.parameters())
 
