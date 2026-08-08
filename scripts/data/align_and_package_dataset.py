@@ -54,6 +54,8 @@ from pathlib import Path
 import numpy as np
 import torch
 
+import articulate as art
+
 XSENS_HZ = 60.0
 MOTIVE_HZ = 60.0
 
@@ -92,6 +94,82 @@ def _xsens_energy(acc_calibrated):
     r"""Per-frame proxy for whole-body movement from IMU acceleration: (N,)."""
     acc = acc_calibrated.numpy() if torch.is_tensor(acc_calibrated) else acc_calibrated
     return np.linalg.norm(acc.reshape(acc.shape[0], -1), axis=1)
+
+
+def _slerp_rotmats(r_before, r_after, n):
+    r_rel = torch.matmul(r_before.transpose(-1, -2), r_after)
+    aa_rel = art.math.rotation_matrix_to_axis_angle(
+        r_rel.reshape(-1, 3, 3)
+    ).view(r_before.shape[0], 3)
+    out = []
+    for k in range(1, n + 1):
+        t = k / (n + 1)
+        r_t = art.math.axis_angle_to_rotation_matrix(
+            (aa_rel * t).reshape(-1, 3)
+        ).view_as(r_before)
+        out.append(torch.matmul(r_before, r_t))
+    return out
+
+
+def _lerp(a_before, a_after, n):
+    return [
+        a_before * (1 - k / (n + 1)) + a_after * (k / (n + 1))
+        for k in range(1, n + 1)
+    ]
+
+
+def fill_missing_capture(acc, ori, is_missing, label):
+    r"""
+    Fill NaN-marked missing frames (dropped Xsens packets) via linear
+    interpolation (acceleration) and geodesic/spherical interpolation
+    (orientation), using the valid frames on both sides of each gap.
+    Mirrors fill_missing_xsens_frames.py so this always runs, instead of
+    depending on that script having been run manually beforehand.
+
+    :param acc: (N, 6, 3)
+    :param ori: (N, 6, 3, 3)
+    :param is_missing: length-N sequence of bool
+    :return: (acc_filled, ori_filled)
+    """
+    missing = list(is_missing)
+    n_missing = sum(missing)
+    if n_missing == 0:
+        return acc, ori
+
+    print(f"  [info] {label}: filling {n_missing}/{len(missing)} missing Xsens frames")
+    acc = acc.clone()
+    ori = ori.clone()
+    n = acc.shape[0]
+
+    i = 0
+    while i < n:
+        if not missing[i]:
+            i += 1
+            continue
+        j = i
+        while j < n and missing[j]:
+            j += 1
+        before, after = i - 1, j
+        if before < 0 and after >= n:
+            raise RuntimeError(f"{label}: entire capture is missing -- cannot fill.")
+        elif before < 0:
+            for k in range(i, j):
+                acc[k] = acc[after]
+                ori[k] = ori[after]
+        elif after >= n:
+            for k in range(i, j):
+                acc[k] = acc[before]
+                ori[k] = ori[before]
+        else:
+            gap = j - i
+            acc_filled = _lerp(acc[before], acc[after], gap)
+            ori_filled = _slerp_rotmats(ori[before], ori[after], gap)
+            for offset, k in enumerate(range(i, j)):
+                acc[k] = acc_filled[offset]
+                ori[k] = ori_filled[offset]
+        i = j
+
+    return acc, ori
 
 
 def align_take(pose, tran, acc, ori, gesture_window_s, smooth_window, trim_s, has_end_gesture=True):
@@ -236,11 +314,17 @@ def main():
         has_end_gesture = take_number not in no_end_gesture
 
         capture = torch.load(capture_path)
+        acc_capture, ori_capture = fill_missing_capture(
+            capture["acc_calibrated"],
+            capture["ori_calibrated"],
+            capture.get("is_missing", []),
+            take_name,
+        )
         aligned, diag = align_take(
             pose,
             tran,
-            capture["acc_calibrated"],
-            capture["ori_calibrated"],
+            acc_capture,
+            ori_capture,
             args.gesture_window_s,
             args.smooth_window,
             args.trim_s,
