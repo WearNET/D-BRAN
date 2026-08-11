@@ -19,3 +19,10 @@ configs/xsens_calibration.json
 These files are hardware- and placement-specific. They contain the assigned
 MTw device IDs and a static T-pose calibration for the current six-sensor
 setup. A new calibration should be created whenever sensor placement changes.
+
+The calibration can be (re)generated two ways: standalone via
+`scripts/xsens/calibrate_xsens.py`, or as part of a single combined session via
+`scripts/xsens/xsensDataCapture.py`, which runs the same two-step calibration
+and then immediately captures data with it — useful when building a fine-tuning
+dataset, since it avoids a stale calibration silently being reused across a
+capture session.
