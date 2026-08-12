@@ -34,7 +34,7 @@ D-BRAN currently uses:
 - **AMASS** for synthetic sparse-IMU training data;
 - **DIP-IMU** for real inertial training and validation data;
 - **TotalCapture** for evaluation;
-- **Custom OptiTrack + Xsens captures** for fine-tuning to a specific subject/setup (see below).
+- a **custom OptiTrack + Xsens capture set**, recorded in-house (see below).
 
 The AMASS/DIP-IMU/TotalCapture datasets are not redistributed with this repository. Users are responsible for obtaining them from their official sources and complying with their respective licenses.
 
@@ -70,7 +70,7 @@ data/dataset_work/
 dbran_optitrack/
 ```
 
-An alternative data source for fine-tuning the pipeline on a specific subject or setup, using an OptiTrack volume as ground truth and Xsens MTw sensors as the sparse-IMU input. Full capture-to-fine-tuning workflow: [top-level README](../README.md#fine-tuning-on-custom-captures-optitrack--xsens).
+A custom capture set recorded in-house, using an OptiTrack volume as ground truth alongside six Xsens MTw sensors as the sparse-IMU input.
 
 ```text
 dataset_raw/dbran_optitrack/
