@@ -55,6 +55,7 @@ import os
 import sys
 import time
 import glob
+import json
 import argparse
 from pathlib import Path
 from types import SimpleNamespace
@@ -72,13 +73,13 @@ from tqdm import tqdm
 
 
 # Optional robustness hook. If it is not available, the profiler still works.
-# try:
-#     from robustness_full_pipeline_hook import install_fault_injection
+try:
+    from robustness_full_pipeline_hook import install_fault_injection
 
-#     install_fault_injection()
-#     print("[info] robustness_full_pipeline_hook installed.")
-# except Exception as exc:
-#     print(f"[info] robustness_full_pipeline_hook not installed or skipped: {exc}")
+    install_fault_injection()
+    print("[info] robustness_full_pipeline_hook installed.")
+except Exception as exc:
+    print(f"[info] robustness_full_pipeline_hook not installed or skipped: {exc}")
 
 
 from config import paths, joint_set, vel_scale
@@ -88,6 +89,10 @@ import articulate as art
 
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Set from --skip_fusion in main(). When True, the PoseS3 learned residual
+# fusion module is bypassed (ablation: "w/o residual fusion").
+SKIP_FUSION = False
 
 
 # ------------------------------------------------------------
@@ -822,6 +827,9 @@ def assemble_pose_s3_reduced(s3_outputs):
 
 
 def apply_pose_s3_fusion(s3_fusion, assembled_reduced, p_full):
+    if SKIP_FUSION:
+        return assembled_reduced
+
     if s3_fusion["use_pose_s2_position"]:
         length = min(assembled_reduced.shape[0], p_full.shape[0])
         fusion_input = torch.cat(
@@ -1247,6 +1255,32 @@ class PoseEvaluator:
             print("%s: %.2f (+/- %.2f)" % (name, float(errors[index, 0]), float(errors[index, 1])))
 
 
+class BranchRestrictedEvaluator:
+    """
+    Same masked global angle error formula as PoseEvaluator's SIP metric
+    (FullMotionEvaluator errs[9]), but with joint_mask restricted to an
+    arbitrary joint subset (e.g. one anatomical branch) instead of the
+    fixed hip/shoulder SIP joints. Used for the sensor-robustness
+    experiment's "restricted to the joints of the affected branch" metric.
+    """
+
+    def __init__(self, joint_indices):
+        self.joint_indices = list(joint_indices)
+        self._eval_fn = art.FullMotionEvaluator(
+            paths.smpl_file,
+            joint_mask=torch.tensor(self.joint_indices),
+        )
+
+    def eval_sip(self, pose_p, pose_t):
+        length = min(pose_p.shape[0], pose_t.shape[0])
+        pose_p = pose_p[:length].clone().view(-1, 24, 3, 3)
+        pose_t = pose_t[:length].clone().view(-1, 24, 3, 3)
+        pose_p[:, joint_set.ignored] = torch.eye(3, device=pose_p.device)
+        pose_t[:, joint_set.ignored] = torch.eye(3, device=pose_t.device)
+        errs = self._eval_fn(pose_p, pose_t)
+        return float(errs[9, 0])
+
+
 def summarize_eval(errs, title):
     all_errs = torch.stack(errs, dim=0)
     if all_errs.dim() == 3:
@@ -1415,7 +1449,29 @@ def main():
     parser.add_argument("--latency_warmup_frames", type=int, default=30)
     parser.add_argument("--use_cuda_streams", action="store_true")
 
+    parser.add_argument("--skip_fusion", action="store_true",
+                         help="Ablation: bypass the PoseS3 learned residual fusion module.")
+    parser.add_argument("--branch_restricted_joints", type=str, default=None,
+                         help="Comma-separated SMPL joint indices. When set, also reports the "
+                              "SIP-style masked global angle error restricted to this joint subset "
+                              "(e.g. one anatomical branch), for both pipelines.")
+    parser.add_argument("--branch_restricted_label", type=str, default="branch",
+                         help="Label used when printing the branch-restricted metric.")
+    parser.add_argument("--export_per_sequence", type=str, default=None,
+                         help="Path to write per-sequence offline errors (JSON) for both pipelines.")
+
     args = parser.parse_args()
+
+    global SKIP_FUSION
+    SKIP_FUSION = bool(args.skip_fusion)
+    print("Skip PoseS3 residual fusion:", SKIP_FUSION)
+
+    branch_evaluator = None
+    branch_joint_indices = None
+    if args.branch_restricted_joints is not None:
+        branch_joint_indices = [int(x) for x in args.branch_restricted_joints.split(",") if x.strip() != ""]
+        branch_evaluator = BranchRestrictedEvaluator(branch_joint_indices)
+        print(f"Branch-restricted eval ('{args.branch_restricted_label}') joints: {branch_joint_indices}")
 
     print("DEVICE:", DEVICE)
     print("Use CUDA streams:", bool(args.use_cuda_streams and DEVICE.type == "cuda"))
@@ -1445,6 +1501,7 @@ def main():
 
     print_size(original_net, s1_models, s2_models, s3_models, s3_fusion, args)
 
+    raw_paths = None
     if args.dataset_dir is not None:
         data = torch.load(os.path.join(args.dataset_dir, "test.pt"), map_location="cpu", weights_only=False)
         raw_items = [
@@ -1452,18 +1509,24 @@ def main():
             for acc, ori, pose, tran in zip(data["acc"], data["ori"], data["pose"], data["tran"])
         ]
     elif args.raw_list_file is not None:
+        raw_paths = load_list(args.raw_list_file)
         raw_items = [
             torch.load(path, map_location="cpu", weights_only=False)
-            for path in load_list(args.raw_list_file)
+            for path in raw_paths
         ]
     else:
         raise RuntimeError("Provide either --raw_list_file or --dataset_dir")
 
     if args.max_sequences is not None:
         raw_items = raw_items[:args.max_sequences]
+        if raw_paths is not None:
+            raw_paths = raw_paths[:args.max_sequences]
 
     if len(raw_items) == 0:
         raise RuntimeError("No sequences found.")
+
+    if raw_paths is None:
+        raw_paths = [None] * len(raw_items)
 
     if args.warmup:
         warmup_online_models(
@@ -1486,6 +1549,10 @@ def main():
     online_orig_errs = []
     online_dist_errs = []
 
+    branch_orig_errs = []
+    branch_dist_errs = []
+    per_sequence_records = []
+
     offline_orig_times = []
     offline_dist_times = []
     offline_orig_frames = []
@@ -1504,9 +1571,9 @@ def main():
     online_dist_peak_alloc = None
     online_dist_peak_reserved = None
 
-    iterator = tqdm(raw_items, desc="Evaluating full pipeline with Trans-B1/B2", ncols=120)
+    iterator = tqdm(list(zip(raw_items, raw_paths)), desc="Evaluating full pipeline with Trans-B1/B2", ncols=120)
 
-    for raw in iterator:
+    for raw, raw_path in iterator:
         pose_t = art.math.axis_angle_to_rotation_matrix(raw["pose"]).view(-1, 24, 3, 3)
         frame_count = float(pose_t.shape[0])
 
@@ -1550,6 +1617,34 @@ def main():
         if DEVICE.type == "cuda":
             offline_dist_peak_alloc = update_peak(offline_dist_peak_alloc, bytes_to_mb(torch.cuda.max_memory_allocated()))
             offline_dist_peak_reserved = update_peak(offline_dist_peak_reserved, bytes_to_mb(torch.cuda.max_memory_reserved()))
+
+        if branch_evaluator is not None:
+            branch_orig_errs.append(branch_evaluator.eval_sip(pose_orig_off, pose_t))
+            branch_dist_errs.append(branch_evaluator.eval_sip(pose_dist_off, pose_t))
+
+        if args.export_per_sequence is not None:
+            orig_vec = offline_orig_errs[-1][:, 0]
+            dist_vec = offline_dist_errs[-1][:, 0]
+            record = {
+                "path": raw_path,
+                "source": raw.get("source") if isinstance(raw, dict) else None,
+                "index": raw.get("index") if isinstance(raw, dict) else None,
+                "frame_count": frame_count,
+                "sip_orig": float(orig_vec[0]),
+                "sip_dist": float(dist_vec[0]),
+                "ang_orig": float(orig_vec[1]),
+                "ang_dist": float(dist_vec[1]),
+                "pos_orig": float(orig_vec[2]),
+                "pos_dist": float(dist_vec[2]),
+                "mesh_orig": float(orig_vec[3]),
+                "mesh_dist": float(dist_vec[3]),
+                "jitter_orig": float(orig_vec[4]),
+                "jitter_dist": float(dist_vec[4]),
+            }
+            if branch_evaluator is not None:
+                record["branch_sip_orig"] = branch_orig_errs[-1]
+                record["branch_sip_dist"] = branch_dist_errs[-1]
+            per_sequence_records.append(record)
 
         if args.evaluate_online:
             pose_orig_on, _, orig_samples, peak_alloc, peak_reserved = original_online_profiled(
@@ -1619,6 +1714,23 @@ def main():
             online_dist_peak_reserved,
             "ONLINE LATENCY - Distributed five-branch pose + original Trans-B1/B2",
         )
+
+    if branch_evaluator is not None:
+        branch_orig = torch.tensor(branch_orig_errs)
+        branch_dist = torch.tensor(branch_dist_errs)
+        print(f"\n==================== BRANCH-RESTRICTED SIP ('{args.branch_restricted_label}') ====================")
+        print(f"Joints: {branch_joint_indices}")
+        print("Original full pipeline:                  %.2f (+/- %.2f)" % (
+            float(branch_orig.mean()), float(branch_orig.std(unbiased=False))))
+        print("Distributed five-branch + fusion:         %.2f (+/- %.2f)" % (
+            float(branch_dist.mean()), float(branch_dist.std(unbiased=False))))
+
+    if args.export_per_sequence is not None:
+        export_path = Path(args.export_per_sequence)
+        export_path.parent.mkdir(parents=True, exist_ok=True)
+        with export_path.open("w", encoding="utf-8") as f:
+            json.dump(per_sequence_records, f, indent=2)
+        print(f"\n[info] Wrote per-sequence errors for {len(per_sequence_records)} sequences to {export_path}")
 
 
 if __name__ == "__main__":

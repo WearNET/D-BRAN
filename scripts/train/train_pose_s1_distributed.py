@@ -106,6 +106,8 @@ TARGET_CONFIG = {
     },
 }
 
+TARGET_ORDER = ["left_arm", "right_arm", "left_leg", "right_leg", "head"]
+
 
 # ------------------------------------------------------------
 # Reproducibility
@@ -421,7 +423,7 @@ def compute_epoch_val(model, loader, criterion, batch_size_for_norm):
 # ------------------------------------------------------------
 # W&B helpers
 # ------------------------------------------------------------
-def init_wandb(args):
+def init_wandb(args, target):
     if not args.use_wandb:
         return None
 
@@ -431,15 +433,19 @@ def init_wandb(args):
     tags = [t.strip() for t in args.wandb_tags.split(",") if t.strip()]
     config = vars(args).copy()
     config["device"] = str(DEVICE)
-    config["local_sensor_idx"] = TARGET_CONFIG[args.target]["sensor_idx"]
+    config["target"] = target
+    config["local_sensor_idx"] = TARGET_CONFIG[target]["sensor_idx"]
+
+    run_name = args.wandb_run_name if args.wandb_run_name else target
 
     run = wandb.init(
         project=args.wandb_project,
         entity=args.wandb_entity if args.wandb_entity else None,
-        name=args.wandb_run_name if args.wandb_run_name else None,
+        name=run_name,
         group=args.wandb_group if args.wandb_group else None,
         tags=tags,
         config=config,
+        reinit=True,
     )
     return run
 
@@ -468,20 +474,15 @@ def log_wandb_final_metrics(val_loss, val_pos_error_cm, test_loss, test_pos_erro
 # ------------------------------------------------------------
 # Train
 # ------------------------------------------------------------
-def train(args):
+def train_target(args, target: str, train_gt_files, test_gt_files):
     set_seed(args.seed)
 
+    print("\n" + "=" * 78)
+    print(f"TRAINING DISTRIBUTED POSE-S1 BRANCH: {target}")
+    print("=" * 78)
     print("DEVICE:", DEVICE)
-    print("TARGET:", args.target)
 
-    train_gt_files = load_list(args.train_gt_list_file)
-    test_gt_files = load_list(args.test_gt_list_file)
-
-    if len(train_gt_files) == 0:
-        raise RuntimeError("Training GT list file is empty or invalid.")
-    if len(test_gt_files) == 0:
-        raise RuntimeError("Test GT list file is empty or invalid.")
-
+    train_gt_files = list(train_gt_files)
     random.shuffle(train_gt_files)
 
     total_len = len(train_gt_files)
@@ -496,17 +497,17 @@ def train(args):
 
     train_ds = PoseS1DistributedNoClassifierDataset(
         gt_file_list=train_files,
-        target_name=args.target,
+        target_name=target,
         root_sensor_idx=args.root_sensor_idx,
     )
     val_ds = PoseS1DistributedNoClassifierDataset(
         gt_file_list=val_files,
-        target_name=args.target,
+        target_name=target,
         root_sensor_idx=args.root_sensor_idx,
     )
     test_ds = PoseS1DistributedNoClassifierDataset(
         gt_file_list=test_gt_files,
-        target_name=args.target,
+        target_name=target,
         root_sensor_idx=args.root_sensor_idx,
     )
 
@@ -538,14 +539,19 @@ def train(args):
     )
 
     pretrained_state_dict = None
-    if args.pretrained_checkpoint:
-        print(f"[Fine-tune] Loading pretrained checkpoint: {args.pretrained_checkpoint}")
-        ckpt = torch.load(args.pretrained_checkpoint, map_location=DEVICE, weights_only=False)
+    if args.pretrained_checkpoint_dir:
+        pretrained_path = os.path.join(
+            args.pretrained_checkpoint_dir,
+            target,
+            f"best_pose_s1_no_classifier_{target}.pth",
+        )
+        print(f"[Fine-tune] Loading pretrained checkpoint: {pretrained_path}")
+        ckpt = torch.load(pretrained_path, map_location=DEVICE, weights_only=False)
 
-        if ckpt.get("target") != args.target:
+        if ckpt.get("target") != target:
             print(
                 f"  [warning] checkpoint target='{ckpt.get('target')}' does not match "
-                f"--target='{args.target}'"
+                f"target='{target}'"
             )
 
         for key in ("proj_dim", "rnn_hidden", "rnn_layers", "dropout"):
@@ -588,14 +594,14 @@ def train(args):
 
     criterion = nn.MSELoss(reduction="sum")
 
-    save_dir_target = os.path.join(args.save_dir, args.target)
+    save_dir_target = os.path.join(args.save_dir, target)
     os.makedirs(save_dir_target, exist_ok=True)
 
     best_val_loss = float("inf")
     patience_counter = 0
-    best_path = os.path.join(save_dir_target, f"best_pose_s1_no_classifier_{args.target}.pth")
+    best_path = os.path.join(save_dir_target, f"best_pose_s1_no_classifier_{target}.pth")
 
-    run = init_wandb(args)
+    run = init_wandb(args, target)
     if WANDB_AVAILABLE and run is not None:
         wandb.watch(model, log="gradients", log_freq=200)
 
@@ -641,10 +647,10 @@ def train(args):
             torch.save(
                 {
                     "model_state_dict": model.state_dict(),
-                    "target": args.target,
+                    "target": target,
                     "root_sensor_idx": args.root_sensor_idx,
-                    "local_sensor_idx": TARGET_CONFIG[args.target]["sensor_idx"],
-                    "gt_key": TARGET_CONFIG[args.target]["gt_key"],
+                    "local_sensor_idx": TARGET_CONFIG[target]["sensor_idx"],
+                    "gt_key": TARGET_CONFIG[target]["gt_key"],
                     "input_dim": 24,
                     "output_dim": 3,
                     "proj_dim": args.proj_dim,
@@ -694,6 +700,41 @@ def train(args):
     if WANDB_AVAILABLE and wandb.run is not None:
         wandb.finish()
 
+    return {
+        "val_position_error_cm": final_val_pos_error_cm,
+        "test_position_error_cm": final_test_pos_error_cm,
+    }
+
+
+def main():
+    args = build_argparser().parse_args()
+
+    train_gt_files = load_list(args.train_gt_list_file)
+    test_gt_files = load_list(args.test_gt_list_file)
+
+    if len(train_gt_files) == 0:
+        raise RuntimeError("Training GT list file is empty or invalid.")
+    if len(test_gt_files) == 0:
+        raise RuntimeError("Test GT list file is empty or invalid.")
+
+    targets = TARGET_ORDER if args.target == "all" else [args.target]
+    results = {}
+
+    for target in targets:
+        results[target] = train_target(args, target, train_gt_files, test_gt_files)
+
+    print("\n" + "=" * 78)
+    print("FINAL FIVE-BRANCH POSE-S1 RESULTS")
+    print("=" * 78)
+
+    for target in targets:
+        metrics = results[target]
+        print(
+            f"{target:>10}: "
+            f"ValPos={metrics['val_position_error_cm']:.4f} cm | "
+            f"TestPos={metrics['test_position_error_cm']:.4f} cm"
+        )
+
 
 def build_argparser():
     parser = argparse.ArgumentParser()
@@ -702,8 +743,8 @@ def build_argparser():
         "--target",
         type=str,
         required=True,
-        choices=list(TARGET_CONFIG.keys()),
-        help="Target sub-network to train: left_arm, right_arm, left_leg, right_leg, head"
+        choices=[*TARGET_ORDER, "all"],
+        help="Target sub-network to train: left_arm, right_arm, left_leg, right_leg, head, or all"
     )
 
     parser.add_argument(
@@ -727,14 +768,16 @@ def build_argparser():
     )
 
     parser.add_argument(
-        "--pretrained_checkpoint",
+        "--pretrained_checkpoint_dir",
         type=str,
         default="",
         help=(
-            "Path to an existing best_pose_s1_no_classifier_<target>.pth "
-            "checkpoint to fine-tune from, e.g. "
-            "checkpoints/dbran_pose_s1_5branch_32h/left_arm/best_pose_s1_no_classifier_left_arm.pth. "
-            "Leave empty to train from scratch (default behavior, unchanged)."
+            "Root dir of existing Pose-S1 checkpoints to fine-tune from, e.g. "
+            "checkpoints/dbran_pose_s1_5branch_32h. The per-target path is built "
+            "automatically as <dir>/<target>/best_pose_s1_no_classifier_<target>.pth "
+            "-- this avoids accidentally pointing every branch at the same "
+            "checkpoint when using --target all. Leave empty to train from "
+            "scratch (default behavior, unchanged)."
         ),
     )
 
@@ -773,6 +816,4 @@ def build_argparser():
 
 
 if __name__ == "__main__":
-    parser = build_argparser()
-    args = parser.parse_args()
-    train(args)
+    main()
