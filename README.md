@@ -106,7 +106,6 @@ D-BRAN/
 ├── scripts/
 │   ├── baseline/                   # Original TransPose evaluation
 │   ├── data/                       # Dataset, stage-data, and OptiTrack ground-truth preparation
-│   ├── figures/                    # Paper figure generation
 │   ├── precompute/                 # Intermediate stage predictions
 │   ├── profile/                    # Full-pipeline and FLOP profiling
 │   ├── train/                      # Pose-S1, Pose-S2, Pose-S3, and fusion training

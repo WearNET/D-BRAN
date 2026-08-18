@@ -47,6 +47,10 @@ sector_logs/
 scripts/figures/
 scripts/analysis/
 
+# Ablation study infrastructure (useful for future publications, kept
+# local-only -- see ablation_test/README.md)
+ablation_test/
+
 # Videos
 *.mp4
 *.avi
