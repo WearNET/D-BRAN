@@ -42,6 +42,11 @@ logs/
 sector_logs/
 *.log
 
+# Paper writeup scripts (figures/statistics for the manuscript, not part
+# of the D-BRAN codebase itself)
+scripts/figures/
+scripts/analysis/
+
 # Videos
 *.mp4
 *.avi
