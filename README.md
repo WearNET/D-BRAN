@@ -111,6 +111,7 @@ D-BRAN/
 │   ├── train/                      # Pose-S1, Pose-S2, Pose-S3, and fusion training
 │   └── xsens/                      # Calibration, live inference, Unity streaming, data capture
 ├── config.py
+├── environment.yml                 # Conda environment (torch, CUDA 13.0, scientific stack)
 ├── main_path.py                    # Centralized repository paths
 ├── net.py                          # Original TransPose network and translation modules
 ├── utils.py
@@ -199,13 +200,14 @@ See [`data/README.md`](data/README.md) for the current data-directory notes.
 
 ## Environment
 
-The current implementation has been validated inside the existing Conda environment used for TransPose:
+The current implementation has been validated inside the `D-BRAN` Conda environment. Create it from the included `environment.yml`:
 
 ```bash
-conda activate TransPose
+conda env create -f environment.yml
+conda activate D-BRAN
 ```
 
-At minimum, the current scripts require PyTorch and the scientific Python packages imported by the training, evaluation, profiling, and visualization scripts.
+This installs PyTorch with CUDA 13.0 support (via `--extra-index-url https://download.pytorch.org/whl/cu130`) and the scientific Python packages imported by the training, evaluation, profiling, and visualization scripts. Adjust the PyTorch/CUDA build in `environment.yml` if your machine uses a different CUDA version.
 
 ---
 
