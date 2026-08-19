@@ -308,7 +308,7 @@ python scripts/train/train_pose_s2_full_distributed.py --help
 
 ## Acknowledgments
 
-
+This research received financial support from the NSF CAREER Intelligent Biomarker Analysis based on Wearable Distributed Computing under Grant No. OAC-2439345.
 
 ---
 
