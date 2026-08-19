@@ -7,8 +7,8 @@ outputs into the standard Pose-S2 full joint-position vector:
     full_joint_position_pred [T, 69]
 
 Expected prepared input files:
-    data/dataset_train/train_pose_s2_full_distributed.txt
-    data/dataset_train/test_pose_s2_full_distributed.txt
+    data/dataset_train/train_pose_s2.txt
+    data/dataset_train/test_pose_s2.txt
 
 Each referenced .pt file must contain:
     source_file
@@ -23,11 +23,11 @@ Optional:
 
 Expected checkpoints:
     weights_root/
-    ├── left_leg/best_pose_s2_full_distributed_left_leg.pth
-    ├── right_leg/best_pose_s2_full_distributed_right_leg.pth
-    ├── trunk_head/best_pose_s2_full_distributed_trunk_head.pth
-    ├── left_arm/best_pose_s2_full_distributed_left_arm.pth
-    └── right_arm/best_pose_s2_full_distributed_right_arm.pth
+    ├── left_leg/best_pose_s2_left_leg.pth
+    ├── right_leg/best_pose_s2_right_leg.pth
+    ├── trunk_head/best_pose_s2_trunk_head.pth
+    ├── left_arm/best_pose_s2_left_arm.pth
+    └── right_arm/best_pose_s2_right_arm.pth
 """
 
 from __future__ import annotations
@@ -179,16 +179,6 @@ def find_checkpoint(weights_root: str, target: str) -> str:
         os.path.join(
             weights_root,
             target,
-            f"best_pose_s2_full_distributed_{target}.pth",
-        ),
-        os.path.join(
-            weights_root,
-            target,
-            f"best_pose_s2_distributed_{target}.pth",
-        ),
-        os.path.join(
-            weights_root,
-            target,
             f"best_pose_s2_{target}.pth",
         ),
     ]
@@ -305,9 +295,9 @@ def make_output_name(index: int, prepared_path: str, suffix: str) -> str:
     )
 
     if suffix:
-        return f"{safe_stem}_{suffix}_pose_s2_full_distributed_pred.pt"
+        return f"{safe_stem}_{suffix}_pose_s2_pred.pt"
 
-    return f"{safe_stem}_pose_s2_full_distributed_pred_{index:06d}.pt"
+    return f"{safe_stem}_pose_s2_pred_{index:06d}.pt"
 
 
 def process_one_file(

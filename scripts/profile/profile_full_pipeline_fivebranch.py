@@ -478,9 +478,7 @@ def find_fusion_checkpoint(path_or_root):
         return path_or_root
 
     candidates = [
-        os.path.join(path_or_root, "best_pose_s3_five_branch_rotation_fusion.pth"),
-        os.path.join(path_or_root, "best_pose_s3_reduced_rotation_fusion.pth"),
-        os.path.join(path_or_root, "best_pose_s3_rotation_fusion.pth"),
+        os.path.join(path_or_root, "best_pose_s3_fusion.pth"),
     ]
 
     for path in candidates:
@@ -501,7 +499,6 @@ def load_distributed_s1_model(weights_root, target):
         weights_root,
         target,
         [
-            "best_pose_s1_distributed_{target}.pth",
             "best_pose_s1_{target}.pth",
         ],
     )
@@ -544,8 +541,6 @@ def load_pose_s2_full_branch(weights_root, target):
         weights_root,
         target,
         [
-            "best_pose_s2_full_distributed_{target}.pth",
-            "best_pose_s2_distributed_{target}.pth",
             "best_pose_s2_{target}.pth",
         ],
     )
@@ -596,9 +591,6 @@ def load_pose_s3_five_branch_region(weights_root, target):
         weights_root,
         target,
         [
-            "best_pose_s3_five_branch_region_{target}.pth",
-            "best_pose_s3_reduced_region_{target}.pth",
-            "best_pose_s3_region_{target}.pth",
             "best_pose_s3_{target}.pth",
         ],
     )

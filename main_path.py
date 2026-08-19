@@ -85,21 +85,21 @@ TRANSPOSE_WEIGHTS_FILE = (
 # ---------------------------------------------------------------------------
 
 POSE_S1_CHECKPOINTS_DIR = (
-    CHECKPOINTS_DIR / "dbran_pose_s1_5branch_32h"
+    CHECKPOINTS_DIR / "dbran_pose_s1"
 )
 
 POSE_S2_CHECKPOINTS_DIR = (
-    CHECKPOINTS_DIR / "dbran_pose_s2_5branch_16h"
+    CHECKPOINTS_DIR / "dbran_pose_s2"
 )
 
 POSE_S3_CHECKPOINTS_DIR = (
-    CHECKPOINTS_DIR / "dbran_pose_s3_5branch_16h"
+    CHECKPOINTS_DIR / "dbran_pose_s3"
 )
 
 POSE_S3_FUSION_CHECKPOINT = (
     CHECKPOINTS_DIR
-    / "dbran_pose_s3_fusion_16h"
-    / "best_pose_s3_five_branch_rotation_fusion.pth"
+    / "dbran_pose_s3_fusion"
+    / "best_pose_s3_fusion.pth"
 )
 
 # New training runs should not overwrite the final checkpoints.
@@ -119,19 +119,19 @@ TEST_POSE_LIST = DATASET_TRAIN_DIR / "test.txt"
 # ---------------------------------------------------------------------------
 
 POSE_S1_GT_TRAIN_LIST = (
-    DATASET_TRAIN_DIR / "train_pose_s1_gt_no_classifier.txt"
+    DATASET_TRAIN_DIR / "train_pose_s1.txt"
 )
 
 POSE_S1_GT_TEST_LIST = (
-    DATASET_TRAIN_DIR / "test_pose_s1_gt_no_classifier.txt"
+    DATASET_TRAIN_DIR / "test_pose_s1.txt"
 )
 
 POSE_S1_PRED_TRAIN_LIST = (
-    DATASET_TRAIN_DIR / "train_pose_s1_pred_32h.txt"
+    DATASET_TRAIN_DIR / "train_pose_s1_pred.txt"
 )
 
 POSE_S1_PRED_TEST_LIST = (
-    DATASET_TRAIN_DIR / "test_pose_s1_pred_32h.txt"
+    DATASET_TRAIN_DIR / "test_pose_s1_pred.txt"
 )
 
 
@@ -148,21 +148,21 @@ POSE_S2_GT_TEST_LIST = (
 )
 
 POSE_S2_TRAIN_LIST = (
-    DATASET_TRAIN_DIR / "train_pose_s2_full_distributed.txt"
+    DATASET_TRAIN_DIR / "train_pose_s2.txt"
 )
 
 POSE_S2_TEST_LIST = (
-    DATASET_TRAIN_DIR / "test_pose_s2_full_distributed.txt"
+    DATASET_TRAIN_DIR / "test_pose_s2.txt"
 )
 
 POSE_S2_PRED_TRAIN_LIST = (
     DATASET_TRAIN_DIR
-    / "train_pose_s2_full_distributed_16h_pred.txt"
+    / "train_pose_s2_pred.txt"
 )
 
 POSE_S2_PRED_TEST_LIST = (
     DATASET_TRAIN_DIR
-    / "test_pose_s2_full_distributed_16h_pred.txt"
+    / "test_pose_s2_pred.txt"
 )
 
 
@@ -171,19 +171,19 @@ POSE_S2_PRED_TEST_LIST = (
 # ---------------------------------------------------------------------------
 
 POSE_S3_TRAIN_LIST = (
-    DATASET_TRAIN_DIR / "train_pose_s3_five_branch_16h.txt"
+    DATASET_TRAIN_DIR / "train_pose_s3.txt"
 )
 
 POSE_S3_TEST_LIST = (
-    DATASET_TRAIN_DIR / "test_pose_s3_five_branch_16h.txt"
+    DATASET_TRAIN_DIR / "test_pose_s3.txt"
 )
 
 POSE_S3_PRED_TRAIN_LIST = (
     DATASET_TRAIN_DIR
-    / "train_pose_s3_five_branch_region_pred_16h.txt"
+    / "train_pose_s3_pred.txt"
 )
 
 POSE_S3_PRED_TEST_LIST = (
     DATASET_TRAIN_DIR
-    / "test_pose_s3_five_branch_region_pred_16h.txt"
+    / "test_pose_s3_pred.txt"
 )

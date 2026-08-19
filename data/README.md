@@ -86,7 +86,7 @@ dataset_train/DBRAN_OptiTrack/
 └── optitrack_XXX.pt                # finalize_dbran_optitrack_dataset.py output, one per take
 ```
 
-`captura_XXX.pt` and `Take_XXX.csv` are paired by their shared numeric suffix (`captura_003.pt` ↔ `Take_003.csv`). The remaining stage-specific manifests (`train_pose_dbran_optitrack.txt`, `train_pose_s1_gt_dbran_optitrack.txt`, `train_pose_s2_*_dbran_optitrack.txt`, `train_pose_s3_*_dbran_optitrack.txt`, ...) follow the same naming pattern as the base manifests below, with a `_dbran_optitrack` suffix, and live under `dataset_train/` alongside them.
+`captura_XXX.pt` and `Take_XXX.csv` are paired by their shared numeric suffix (`captura_003.pt` ↔ `Take_003.csv`). The remaining stage-specific manifests (`train_pose_dbran_optitrack.txt`, `train_pose_s1_dbran_optitrack.txt`, `train_pose_s2_*_dbran_optitrack.txt`, `train_pose_s3_*_dbran_optitrack.txt`, ...) follow the same naming pattern as the base manifests below, with a `_dbran_optitrack` suffix, and live under `dataset_train/` alongside them.
 
 ## Staged D-BRAN training data
 
@@ -95,19 +95,19 @@ The final training workflow uses intermediate outputs generated between stages.
 ### Pose-S1
 
 ```text
-pose_s1_gt_train_no_classifier/
-pose_s1_gt_test_no_classifier/
-pose_s1_pred_train_32h/
-pose_s1_pred_test_32h/
+pose_s1_train/
+pose_s1_test/
+pose_s1_pred_train/
+pose_s1_pred_test/
 ```
 
 Manifests:
 
 ```text
-train_pose_s1_gt_no_classifier.txt
-test_pose_s1_gt_no_classifier.txt
-train_pose_s1_pred_32h.txt
-test_pose_s1_pred_32h.txt
+train_pose_s1.txt
+test_pose_s1.txt
+train_pose_s1_pred.txt
+test_pose_s1_pred.txt
 ```
 
 ### Pose-S2
@@ -115,39 +115,41 @@ test_pose_s1_pred_32h.txt
 ```text
 pose_s2_gt_train/
 pose_s2_gt_test/
-pose_s2_full_distributed_train/
-pose_s2_full_distributed_test/
-pose_s2_full_distributed_16h_pred_train/
-pose_s2_full_distributed_16h_pred_test/
+pose_s2_train/
+pose_s2_test/
+pose_s2_pred_train/
+pose_s2_pred_test/
 ```
+
+`pose_s2_gt_*` holds the pure SMPL ground truth used as the Pose-S2 training target; `pose_s2_train`/`pose_s2_test` are the ready-to-train tensors that combine that ground truth with Pose-S1's predicted input.
 
 Manifests:
 
 ```text
 train_pose_s2_gt.txt
 test_pose_s2_gt.txt
-train_pose_s2_full_distributed.txt
-test_pose_s2_full_distributed.txt
-train_pose_s2_full_distributed_16h_pred.txt
-test_pose_s2_full_distributed_16h_pred.txt
+train_pose_s2.txt
+test_pose_s2.txt
+train_pose_s2_pred.txt
+test_pose_s2_pred.txt
 ```
 
 ### Pose-S3 and fusion
 
 ```text
-pose_s3_five_branch_train_16h/
-pose_s3_five_branch_test_16h/
-pose_s3_five_branch_region_pred_train_16h/
-pose_s3_five_branch_region_pred_test_16h/
+pose_s3_train/
+pose_s3_test/
+pose_s3_pred_train/
+pose_s3_pred_test/
 ```
 
 Manifests:
 
 ```text
-train_pose_s3_five_branch_16h.txt
-test_pose_s3_five_branch_16h.txt
-train_pose_s3_five_branch_region_pred_16h.txt
-test_pose_s3_five_branch_region_pred_16h.txt
+train_pose_s3.txt
+test_pose_s3.txt
+train_pose_s3_pred.txt
+test_pose_s3_pred.txt
 ```
 
 ## Base sequence manifests
@@ -159,13 +161,17 @@ data/dataset_train/train_pose.txt
 data/dataset_train/test.txt
 ```
 
-Example smoke test:
+### Smoke test
+
+`--max_sequences 1` restricts a run to a single sequence, purely to confirm a data-preparation or profiling script runs end to end — it is not a representative evaluation:
 
 ```bash
 python scripts/profile/profile_full_pipeline_fivebranch.py \
   --raw_list_file data/dataset_train/test.txt \
   --max_sequences 1
 ```
+
+Every `scripts/data/prepare_*.py` script has a defaults block reproducing the original D-BRAN study's data splits; running it unmodified regenerates the same staged tensors listed above. These scripts always require an explicit `--output_dir`, so a default run never silently overwrites existing staged data — but reusing the same `--output_dir` across two runs does overwrite whatever staged tensors were there before.
 
 ## Important notes
 

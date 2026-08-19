@@ -319,7 +319,7 @@ def main():
         "--pretrained_checkpoint",
         default="",
         help=(
-            "Path to an existing best_pose_s3_five_branch_rotation_fusion.pth "
+            "Path to an existing best_pose_s3_fusion.pth "
             "to fine-tune from. There is only one fusion model (not per-"
             "branch), so a single file path is unambiguous here. Leave empty "
             "to train from scratch (default behavior, unchanged)."
@@ -346,11 +346,11 @@ def main():
     parser.add_argument("--use_wandb", action="store_true")
     parser.add_argument(
         "--wandb_project",
-        default="pose-s3-five-branch-fusion",
+        default="dbran-pose-s3-fusion",
     )
     parser.add_argument(
         "--wandb_run_name",
-        default="pose_s3_five_branch_fusion_16h",
+        default="pose_s3_fusion",
     )
     parser.add_argument("--wandb_group", default=None)
 
@@ -491,7 +491,7 @@ def main():
     patience_counter = 0
     best_path = os.path.join(
         args.save_dir,
-        "best_pose_s3_five_branch_rotation_fusion.pth",
+        "best_pose_s3_fusion.pth",
     )
 
     for epoch in range(1, args.epochs + 1):

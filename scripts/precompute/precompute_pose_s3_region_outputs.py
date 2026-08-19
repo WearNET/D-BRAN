@@ -2,7 +2,7 @@
 Precompute PoseS3 five-branch outputs and assemble them into [T, 90].
 
 Input:
-    Prepared PoseS3 five-branch files from prepare_pose_s3_five_branch_data_v1.py
+    Prepared PoseS3 five-branch files from prepare_pose_s3_five_branch.py
 
 Output per sequence:
     pose3_assembled_pred_6d_reduced [T, 90]
@@ -158,30 +158,17 @@ def load_list(list_file: str) -> List[str]:
 
 
 def find_checkpoint(weights_root: str, target: str) -> str:
-    candidates = [
-        os.path.join(
-            weights_root,
-            target,
-            f"best_pose_s3_five_branch_region_{target}.pth",
-        ),
-        os.path.join(
-            weights_root,
-            target,
-            f"best_pose_s3_reduced_region_{target}.pth",
-        ),
-        os.path.join(
-            weights_root,
-            target,
-            f"best_pose_s3_region_{target}.pth",
-        ),
-    ]
+    path = os.path.join(
+        weights_root,
+        target,
+        f"best_pose_s3_{target}.pth",
+    )
 
-    for path in candidates:
-        if os.path.exists(path):
-            return path
+    if os.path.exists(path):
+        return path
 
     raise FileNotFoundError(
-        f"Could not find checkpoint for target={target}. Tried: {candidates}"
+        f"Could not find checkpoint for target={target}. Tried: {path}"
     )
 
 
@@ -299,7 +286,7 @@ def process_one_file(
 
     output_path = os.path.join(
         output_dir,
-        f"pose_s3_five_branch_pred_{index:06d}.pt",
+        f"pose_s3_pred_{index:06d}.pt",
     )
     torch.save(output, output_path)
 

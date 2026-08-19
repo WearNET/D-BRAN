@@ -92,21 +92,6 @@ def load_model(distributed_root_dir, target_name):
         os.path.join(
             distributed_root_dir,
             target_name,
-            f"best_pose_s1_distributed_{target_name}.pth",
-        ),
-        os.path.join(
-            distributed_root_dir,
-            target_name,
-            f"best_pose_s1_no_classifier_{target_name}.pth",
-        ),
-        os.path.join(
-            distributed_root_dir,
-            target_name,
-            f"best_pose_s1_distributed_no_classifier_{target_name}.pth",
-        ),
-        os.path.join(
-            distributed_root_dir,
-            target_name,
             f"best_pose_s1_{target_name}.pth",
         ),
     ]

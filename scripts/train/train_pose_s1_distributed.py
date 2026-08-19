@@ -65,7 +65,7 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 DEFAULT_TRAIN_GT_LIST = str(POSE_S1_GT_TRAIN_LIST)
 DEFAULT_TEST_GT_LIST = str(POSE_S1_GT_TEST_LIST)
-DEFAULT_SAVE_DIR = str(RETRAINED_CHECKPOINTS_DIR / "pose_s1_5branch_32h")
+DEFAULT_SAVE_DIR = str(RETRAINED_CHECKPOINTS_DIR / "pose_s1")
 
 # ------------------------------------------------------------
 # IMU order aligned with TransPose live demo convention
@@ -543,7 +543,7 @@ def train_target(args, target: str, train_gt_files, test_gt_files):
         pretrained_path = os.path.join(
             args.pretrained_checkpoint_dir,
             target,
-            f"best_pose_s1_no_classifier_{target}.pth",
+            f"best_pose_s1_{target}.pth",
         )
         print(f"[Fine-tune] Loading pretrained checkpoint: {pretrained_path}")
         ckpt = torch.load(pretrained_path, map_location=DEVICE, weights_only=False)
@@ -599,7 +599,7 @@ def train_target(args, target: str, train_gt_files, test_gt_files):
 
     best_val_loss = float("inf")
     patience_counter = 0
-    best_path = os.path.join(save_dir_target, f"best_pose_s1_no_classifier_{target}.pth")
+    best_path = os.path.join(save_dir_target, f"best_pose_s1_{target}.pth")
 
     run = init_wandb(args, target)
     if WANDB_AVAILABLE and run is not None:
@@ -773,8 +773,8 @@ def build_argparser():
         default="",
         help=(
             "Root dir of existing Pose-S1 checkpoints to fine-tune from, e.g. "
-            "checkpoints/dbran_pose_s1_5branch_32h. The per-target path is built "
-            "automatically as <dir>/<target>/best_pose_s1_no_classifier_<target>.pth "
+            "checkpoints/dbran_pose_s1. The per-target path is built "
+            "automatically as <dir>/<target>/best_pose_s1_<target>.pth "
             "-- this avoids accidentally pointing every branch at the same "
             "checkpoint when using --target all. Leave empty to train from "
             "scratch (default behavior, unchanged)."
@@ -806,11 +806,11 @@ def build_argparser():
     parser.add_argument("--num_workers", type=int, default=0)
 
     parser.add_argument("--use_wandb", action="store_true", help="Enable Weights & Biases logging")
-    parser.add_argument("--wandb_project", type=str, default="distributed-pose-s1-no-classifier")
+    parser.add_argument("--wandb_project", type=str, default="dbran-pose-s1")
     parser.add_argument("--wandb_entity", type=str, default="")
     parser.add_argument("--wandb_run_name", type=str, default="")
     parser.add_argument("--wandb_group", type=str, default="")
-    parser.add_argument("--wandb_tags", type=str, default="pose_s1_distributed_no_classifier")
+    parser.add_argument("--wandb_tags", type=str, default="pose_s1_distributed")
 
     return parser
 

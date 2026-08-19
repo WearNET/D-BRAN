@@ -459,7 +459,7 @@ def initialize_wandb(
 
     run_name = (
         args.wandb_run_name
-        or f"pose_s2_full_distributed_{target}_{args.rnn_hidden}h"
+        or f"pose_s2_{target}_{args.rnn_hidden}h"
     )
 
     return wandb.init(
@@ -595,7 +595,7 @@ def train_target(
         pretrained_path = os.path.join(
             args.pretrained_checkpoint_dir,
             target,
-            f"best_pose_s2_full_distributed_{target}.pth",
+            f"best_pose_s2_{target}.pth",
         )
         print(f"[Fine-tune] Loading pretrained checkpoint: {pretrained_path}")
         ckpt = torch.load(pretrained_path, map_location=DEVICE, weights_only=False)
@@ -665,7 +665,7 @@ def train_target(
 
     checkpoint_path = os.path.join(
         target_save_dir,
-        f"best_pose_s2_full_distributed_{target}.pth",
+        f"best_pose_s2_{target}.pth",
     )
 
     run = initialize_wandb(
@@ -831,15 +831,15 @@ def build_argument_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--save_dir",
-        default=str(RETRAINED_CHECKPOINTS_DIR / "pose_s2_full_distributed"),
+        default=str(RETRAINED_CHECKPOINTS_DIR / "pose_s2"),
     )
     parser.add_argument(
         "--pretrained_checkpoint_dir",
         default="",
         help=(
             "Root dir of existing Pose-S2 checkpoints to fine-tune from, e.g. "
-            "checkpoints/dbran_pose_s2_5branch_16h. The per-target path is "
-            "built automatically as <dir>/<target>/best_pose_s2_full_distributed_"
+            "checkpoints/dbran_pose_s2. The per-target path is "
+            "built automatically as <dir>/<target>/best_pose_s2_"
             "<target>.pth -- this avoids accidentally pointing every branch at "
             "the same checkpoint when using --target all. Leave empty to train "
             "from scratch (default behavior, unchanged)."
@@ -866,17 +866,17 @@ def build_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--use_wandb", action="store_true")
     parser.add_argument(
         "--wandb_project",
-        default="pose-s2-full-distributed",
+        default="dbran-pose-s2",
     )
     parser.add_argument("--wandb_entity", default="")
     parser.add_argument("--wandb_run_name", default="")
     parser.add_argument(
         "--wandb_group",
-        default="pose_s2_full_distributed_32h",
+        default="pose_s2_16h",
     )
     parser.add_argument(
         "--wandb_tags",
-        default="pose_s2,full_distributed,blstm,no_fusion",
+        default="pose_s2,blstm,no_fusion",
     )
 
     return parser

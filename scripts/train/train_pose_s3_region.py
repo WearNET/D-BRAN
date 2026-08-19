@@ -398,7 +398,7 @@ def train_one_target(args, target, train_files, test_files):
         pretrained_path = os.path.join(
             args.pretrained_checkpoint_dir,
             target,
-            f"best_pose_s3_five_branch_region_{target}.pth",
+            f"best_pose_s3_{target}.pth",
         )
         print(f"[Fine-tune] Loading pretrained checkpoint: {pretrained_path}")
         ckpt = torch.load(pretrained_path, map_location=DEVICE, weights_only=False)
@@ -452,7 +452,7 @@ def train_one_target(args, target, train_files, test_files):
     os.makedirs(save_target_dir, exist_ok=True)
     best_path = os.path.join(
         save_target_dir,
-        f"best_pose_s3_five_branch_region_{target}.pth",
+        f"best_pose_s3_{target}.pth",
     )
 
     run = None
@@ -461,7 +461,7 @@ def train_one_target(args, target, train_files, test_files):
 
         run = wandb.init(
             project=args.wandb_project,
-            name=args.wandb_run_name or f"pose_s3_five_branch_{target}_{args.rnn_hidden}h",
+            name=args.wandb_run_name or f"pose_s3_{target}_{args.rnn_hidden}h",
             group=args.wandb_group,
             config={**vars(args), "target": target, "branch_config": config},
             reinit=True,
@@ -622,9 +622,9 @@ def main():
         default="",
         help=(
             "Root dir of existing Pose-S3 checkpoints to fine-tune from, e.g. "
-            "checkpoints/dbran_pose_s3_5branch_16h. The per-target path is "
+            "checkpoints/dbran_pose_s3. The per-target path is "
             "built automatically as <dir>/<target>/"
-            "best_pose_s3_five_branch_region_<target>.pth. Leave empty to "
+            "best_pose_s3_<target>.pth. Leave empty to "
             "train from scratch (default behavior, unchanged)."
         ),
     )
@@ -648,7 +648,7 @@ def main():
     parser.add_argument("--use_wandb", action="store_true")
     parser.add_argument(
         "--wandb_project",
-        default="pose-s3-five-branch-region",
+        default="dbran-pose-s3",
     )
     parser.add_argument("--wandb_run_name", default=None)
     parser.add_argument("--wandb_group", default=None)
