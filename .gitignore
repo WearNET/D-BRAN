@@ -21,7 +21,8 @@ env/
 # Datasets and generated training data
 data/dataset_raw/
 data/dataset_work/
-data/dataset_train/
+data/dataset_train/*
+!data/dataset_train/*.txt
 data/basicmodel_m_lbs_10_207_0_v1.0.0.pkl
 data/example/
 
