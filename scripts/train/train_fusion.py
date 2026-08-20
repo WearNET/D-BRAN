@@ -1,5 +1,5 @@
 """
-Train the learned PoseS3 fusion network for the five-branch PoseS3 design.
+Train the learned fusion network that refines the assembled Pose-S3 output.
 
 Input:
     pose3_assembled_pred_6d_reduced [T, 90]
@@ -62,7 +62,7 @@ from tqdm import tqdm
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-class PoseS3FiveBranchFusionNet(nn.Module):
+class FusionNet(nn.Module):
     def __init__(
         self,
         input_dim: int,
@@ -88,7 +88,7 @@ class PoseS3FiveBranchFusionNet(nn.Module):
 
     def forward(self, sequence: PackedSequence) -> PackedSequence:
         if not isinstance(sequence, PackedSequence):
-            raise RuntimeError("PoseS3FiveBranchFusionNet expects PackedSequence.")
+            raise RuntimeError("FusionNet expects PackedSequence.")
 
         data = self.dropout(sequence.data)
         data = torch.relu(self.fc_in(data))
@@ -167,13 +167,13 @@ def angular_error_deg(
     return torch.rad2deg(torch.acos(cosine)).mean()
 
 
-class PoseS3FiveBranchFusionDataset(Dataset):
+class FusionDataset(Dataset):
     def __init__(self, files: Sequence[str], use_pose_s2_position: bool = False):
         self.files = list(files)
         self.use_pose_s2_position = bool(use_pose_s2_position)
 
         if not self.files:
-            raise RuntimeError("PoseS3 fusion dataset is empty.")
+            raise RuntimeError("Fusion dataset is empty.")
 
     def __len__(self) -> int:
         return len(self.files)
@@ -319,7 +319,7 @@ def main():
         "--pretrained_checkpoint",
         default="",
         help=(
-            "Path to an existing best_pose_s3_fusion.pth "
+            "Path to an existing best_fusion.pth "
             "to fine-tune from. There is only one fusion model (not per-"
             "branch), so a single file path is unambiguous here. Leave empty "
             "to train from scratch (default behavior, unchanged)."
@@ -346,11 +346,11 @@ def main():
     parser.add_argument("--use_wandb", action="store_true")
     parser.add_argument(
         "--wandb_project",
-        default="dbran-pose-s3-fusion",
+        default="dbran-fusion",
     )
     parser.add_argument(
         "--wandb_run_name",
-        default="pose_s3_fusion",
+        default="fusion",
     )
     parser.add_argument("--wandb_group", default=None)
 
@@ -363,11 +363,11 @@ def main():
     train_files = load_list(args.train_pred_list_file)
     test_files = load_list(args.test_pred_list_file)
 
-    full_train = PoseS3FiveBranchFusionDataset(
+    full_train = FusionDataset(
         train_files,
         use_pose_s2_position=args.use_pose_s2_position,
     )
-    test_dataset = PoseS3FiveBranchFusionDataset(
+    test_dataset = FusionDataset(
         test_files,
         use_pose_s2_position=args.use_pose_s2_position,
     )
@@ -446,7 +446,7 @@ def main():
                 "fine-tuning on a small dataset."
             )
 
-    model = PoseS3FiveBranchFusionNet(
+    model = FusionNet(
         input_dim=input_dim,
         output_dim=output_dim,
         proj_dim=args.proj_dim,
@@ -491,7 +491,7 @@ def main():
     patience_counter = 0
     best_path = os.path.join(
         args.save_dir,
-        "best_pose_s3_fusion.pth",
+        "best_fusion.pth",
     )
 
     for epoch in range(1, args.epochs + 1):

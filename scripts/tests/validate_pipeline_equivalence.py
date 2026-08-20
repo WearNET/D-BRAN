@@ -42,11 +42,11 @@ from main_path import (
     POSE_S1_CHECKPOINTS_DIR,
     POSE_S2_CHECKPOINTS_DIR,
     POSE_S3_CHECKPOINTS_DIR,
-    POSE_S3_FUSION_CHECKPOINT,
+    FUSION_CHECKPOINT,
     TEST_POSE_LIST,
     TRANSPOSE_WEIGHTS_FILE,
 )
-from scripts.profile import profile_full_pipeline_fivebranch as reference
+from scripts.profile import profile_full_pipeline as reference
 
 
 def _first_existing_path(list_file: Path) -> Path:
@@ -206,8 +206,8 @@ def main() -> None:
     reference_s3 = reference.load_all_pose_s3_five_branch_regions(
         str(POSE_S3_CHECKPOINTS_DIR)
     )
-    reference_fusion = reference.load_pose_s3_fusion(
-        str(POSE_S3_FUSION_CHECKPOINT)
+    reference_fusion = reference.load_fusion(
+        str(FUSION_CHECKPOINT)
     )
 
     print("\nLoading reusable DBranPipeline...")

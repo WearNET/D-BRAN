@@ -32,10 +32,10 @@ import torch.nn as nn
 import articulate as art
 from config import joint_set, paths, vel_scale
 from main_path import (
+    FUSION_CHECKPOINT,
     POSE_S1_CHECKPOINTS_DIR,
     POSE_S2_CHECKPOINTS_DIR,
     POSE_S3_CHECKPOINTS_DIR,
-    POSE_S3_FUSION_CHECKPOINT,
     TRANSPOSE_WEIGHTS_FILE,
 )
 from net import TransPoseNet
@@ -253,7 +253,7 @@ class FiveBranchRNN(nn.Module):
         self.fc_out = nn.Linear(rnn_hidden * 2, output_dim)
 
 
-class PoseS3FusionNet(nn.Module):
+class FusionNet(nn.Module):
     def __init__(
         self,
         input_dim: int = 90,
@@ -376,7 +376,7 @@ def _find_fusion_checkpoint(path_or_root: str) -> str:
         return path_or_root
 
     candidates = (
-        "best_pose_s3_fusion.pth",
+        "best_fusion.pth",
     )
     for filename in candidates:
         candidate_path = os.path.join(path_or_root, filename)
@@ -389,7 +389,7 @@ def _find_fusion_checkpoint(path_or_root: str) -> str:
     if matches:
         return matches[0]
 
-    raise FileNotFoundError(f"No Pose-S3 fusion checkpoint found in {path_or_root}")
+    raise FileNotFoundError(f"No fusion checkpoint found in {path_or_root}")
 
 
 @torch.inference_mode()
@@ -555,7 +555,7 @@ class DBranPipeline:
         pose_s1_root: Union[str, os.PathLike] = POSE_S1_CHECKPOINTS_DIR,
         pose_s2_root: Union[str, os.PathLike] = POSE_S2_CHECKPOINTS_DIR,
         pose_s3_root: Union[str, os.PathLike] = POSE_S3_CHECKPOINTS_DIR,
-        pose_s3_fusion_checkpoint: Union[str, os.PathLike] = POSE_S3_FUSION_CHECKPOINT,
+        fusion_checkpoint: Union[str, os.PathLike] = FUSION_CHECKPOINT,
         verbose: bool = True,
     ) -> None:
         self.device = _resolve_device(device)
@@ -588,22 +588,22 @@ class DBranPipeline:
             "Pose-S3 checkpoint directory",
         )
 
-        fusion_path = Path(pose_s3_fusion_checkpoint).expanduser().resolve()
+        fusion_path = Path(fusion_checkpoint).expanduser().resolve()
         if fusion_path.is_dir():
-            self.pose_s3_fusion_checkpoint = _find_fusion_checkpoint(
+            self.fusion_checkpoint = _find_fusion_checkpoint(
                 os.fspath(fusion_path)
             )
         else:
-            self.pose_s3_fusion_checkpoint = _require_file(
+            self.fusion_checkpoint = _require_file(
                 fusion_path,
-                "Pose-S3 fusion checkpoint",
+                "Fusion checkpoint",
             )
 
         self.translation_net = self._load_transpose_net()
         self.pose_s1_models = self._load_all_pose_s1_models()
         self.pose_s2_models = self._load_all_pose_s2_models()
         self.pose_s3_models = self._load_all_pose_s3_models()
-        self.pose_s3_fusion = self._load_pose_s3_fusion()
+        self.fusion = self._load_fusion()
 
         self.pose_s1_streams = self._create_streams(LEAF_ORDER)
         self.pose_s2_streams = self._create_streams(POSE_S2_BRANCH_ORDER)
@@ -777,18 +777,18 @@ class DBranPipeline:
             for target in POSE_S3_BRANCH_ORDER
         }
 
-    def _load_pose_s3_fusion(self) -> Dict[str, object]:
+    def _load_fusion(self) -> Dict[str, object]:
         checkpoint = torch.load(
-            self.pose_s3_fusion_checkpoint,
+            self.fusion_checkpoint,
             map_location=self.device,
             weights_only=False,
         )
         if not isinstance(checkpoint, dict):
             raise RuntimeError(
-                f"Unexpected fusion checkpoint: {self.pose_s3_fusion_checkpoint}"
+                f"Unexpected fusion checkpoint: {self.fusion_checkpoint}"
             )
 
-        model = PoseS3FusionNet(
+        model = FusionNet(
             input_dim=int(checkpoint.get("input_dim", 90)),
             output_dim=int(checkpoint.get("output_dim", 90)),
             proj_dim=int(checkpoint.get("proj_dim", 16)),
@@ -807,13 +807,13 @@ class DBranPipeline:
 
         if self.verbose:
             print(
-                f"[Pose-S3 fusion] {self.pose_s3_fusion_checkpoint} | "
+                f"[Fusion] {self.fusion_checkpoint} | "
                 f"use_pose_s2_position={use_pose_s2_position}"
             )
 
         return {
             "model": model,
-            "checkpoint_path": self.pose_s3_fusion_checkpoint,
+            "checkpoint_path": self.fusion_checkpoint,
             "use_pose_s2_position": use_pose_s2_position,
         }
 
@@ -1018,12 +1018,12 @@ class DBranPipeline:
                 reduced_view[:, reduced_idx, :] = prediction[:, local_idx, :]
         return reduced
 
-    def _apply_pose_s3_fusion(
+    def _apply_fusion(
         self,
         assembled_reduced: torch.Tensor,
         full_positions: torch.Tensor,
     ) -> torch.Tensor:
-        if bool(self.pose_s3_fusion["use_pose_s2_position"]):
+        if bool(self.fusion["use_pose_s2_position"]):
             length = min(
                 assembled_reduced.shape[0],
                 full_positions.shape[0],
@@ -1040,7 +1040,7 @@ class DBranPipeline:
             fusion_input = assembled_reduced.float()
 
         delta = _dense_stage_forward(
-            self.pose_s3_fusion["model"],  # type: ignore[arg-type]
+            self.fusion["model"],  # type: ignore[arg-type]
             fusion_input,
         )
         length = min(assembled_reduced.shape[0], delta.shape[0])
@@ -1092,7 +1092,7 @@ class DBranPipeline:
             self.pose_s3_streams,
         )
         assembled_reduced = self._assemble_pose_s3(pose_s3_outputs)
-        reduced_pose_6d = self._apply_pose_s3_fusion(
+        reduced_pose_6d = self._apply_fusion(
             assembled_reduced,
             full_positions,
         )
@@ -1437,7 +1437,7 @@ class DBranPipeline:
         )
         fusion = sum(
             parameter.numel()
-            for parameter in self.pose_s3_fusion["model"].parameters()
+            for parameter in self.fusion["model"].parameters()
         )
         translation = sum(
             parameter.numel()

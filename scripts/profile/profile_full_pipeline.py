@@ -46,7 +46,7 @@ from main_path import (
     POSE_S1_CHECKPOINTS_DIR,
     POSE_S2_CHECKPOINTS_DIR,
     POSE_S3_CHECKPOINTS_DIR,
-    POSE_S3_FUSION_CHECKPOINT,
+    FUSION_CHECKPOINT,
 )
 
 
@@ -261,7 +261,7 @@ class FiveBranchRNN(nn.Module):
         self.fc_out = nn.Linear(rnn_hidden * 2, output_dim)
 
 
-class PoseS3FusionNet(nn.Module):
+class FusionNet(nn.Module):
     def __init__(
         self,
         input_dim=90,
@@ -478,7 +478,7 @@ def find_fusion_checkpoint(path_or_root):
         return path_or_root
 
     candidates = [
-        os.path.join(path_or_root, "best_pose_s3_fusion.pth"),
+        os.path.join(path_or_root, "best_fusion.pth"),
     ]
 
     for path in candidates:
@@ -491,7 +491,7 @@ def find_fusion_checkpoint(path_or_root):
     if matches:
         return matches[0]
 
-    raise FileNotFoundError(f"No PoseS3 fusion checkpoint found in {path_or_root}")
+    raise FileNotFoundError(f"No fusion checkpoint found in {path_or_root}")
 
 
 def load_distributed_s1_model(weights_root, target):
@@ -636,7 +636,7 @@ def load_all_pose_s3_five_branch_regions(weights_root):
     }
 
 
-def load_pose_s3_fusion(path_or_root):
+def load_fusion(path_or_root):
     checkpoint_path = find_fusion_checkpoint(path_or_root)
     checkpoint = torch.load(
         checkpoint_path,
@@ -644,7 +644,7 @@ def load_pose_s3_fusion(path_or_root):
         weights_only=False,
     )
 
-    model = PoseS3FusionNet(
+    model = FusionNet(
         input_dim=int(checkpoint.get("input_dim", 90)),
         output_dim=int(checkpoint.get("output_dim", 90)),
         proj_dim=int(checkpoint.get("proj_dim", 16)),
@@ -661,7 +661,7 @@ def load_pose_s3_fusion(path_or_root):
     use_pose_s2_position = bool(checkpoint.get("use_pose_s2_position", False))
 
     print(
-        f"[PoseS3 Fusion] {checkpoint_path} | "
+        f"[Fusion] {checkpoint_path} | "
         f"input={checkpoint.get('input_dim', 90)} | "
         f"output={checkpoint.get('output_dim', 90)} | "
         f"hidden={checkpoint.get('rnn_hidden', 'unknown')} | "
@@ -818,11 +818,11 @@ def assemble_pose_s3_reduced(s3_outputs):
     return reduced
 
 
-def apply_pose_s3_fusion(s3_fusion, assembled_reduced, p_full):
+def apply_fusion(fusion, assembled_reduced, p_full):
     if SKIP_FUSION:
         return assembled_reduced
 
-    if s3_fusion["use_pose_s2_position"]:
+    if fusion["use_pose_s2_position"]:
         length = min(assembled_reduced.shape[0], p_full.shape[0])
         fusion_input = torch.cat(
             [assembled_reduced[:length], p_full[:length]],
@@ -832,7 +832,7 @@ def apply_pose_s3_fusion(s3_fusion, assembled_reduced, p_full):
     else:
         fusion_input = assembled_reduced.float()
 
-    delta = dense_stage_forward(s3_fusion["model"], fusion_input)
+    delta = dense_stage_forward(fusion["model"], fusion_input)
     length = min(assembled_reduced.shape[0], delta.shape[0])
     return assembled_reduced[:length] + delta[:length]
 
@@ -843,7 +843,7 @@ def distributed_pose_forward(
     s1_models,
     s2_models,
     s3_models,
-    s3_fusion,
+    fusion,
     s1_streams=None,
     s2_streams=None,
     s3_streams=None,
@@ -880,7 +880,7 @@ def distributed_pose_forward(
         s3_streams,
     )
     assembled_reduced = assemble_pose_s3_reduced(s3_outputs)
-    reduced_pose = apply_pose_s3_fusion(s3_fusion, assembled_reduced, p_full)
+    reduced_pose = apply_fusion(fusion, assembled_reduced, p_full)
 
     imu = normalize_and_concat(raw["acc"], raw["ori"]).float().to(DEVICE)
 
@@ -1051,14 +1051,14 @@ def distributed_offline(
     s1_models,
     s2_models,
     s3_models,
-    s3_fusion,
+    fusion,
 ):
     imu, p_leaf, p_full, reduced_pose = distributed_pose_forward(
         raw,
         s1_models,
         s2_models,
         s3_models,
-        s3_fusion,
+        fusion,
         None,
         None,
         None,
@@ -1096,7 +1096,7 @@ def distributed_online_profiled(
     s1_models,
     s2_models,
     s3_models,
-    s3_fusion,
+    fusion,
     s1_streams,
     s2_streams,
     s3_streams,
@@ -1138,7 +1138,7 @@ def distributed_online_profiled(
             s1_models,
             s2_models,
             s3_models,
-            s3_fusion,
+            fusion,
             s1_streams,
             s2_streams,
             s3_streams,
@@ -1335,7 +1335,7 @@ def summarize_latency(latency_ms, peak_alloc, peak_reserved, title):
         print(f"Peak CUDA reserved (MB):    {peak_reserved:.3f}")
 
 
-def print_size(original_net, s1_models, s2_models, s3_models, s3_fusion, args):
+def print_size(original_net, s1_models, s2_models, s3_models, fusion, args):
     orig_pose_params = (
         count_params(original_net.pose_s1)[0]
         + count_params(original_net.pose_s2)[0]
@@ -1347,9 +1347,9 @@ def print_size(original_net, s1_models, s2_models, s3_models, s3_fusion, args):
     dist_s1_params = sum(count_params(s1_models[name]["model"])[0] for name in LEAF_ORDER)
     dist_s2_params = sum(count_params(s2_models[name]["model"])[0] for name in POSE_S2_BRANCH_ORDER)
     dist_s3_params = sum(count_params(s3_models[name]["model"])[0] for name in POSE_S3_BRANCH_ORDER)
-    dist_s3_fusion_params = count_params(s3_fusion["model"])[0]
+    dist_fusion_params = count_params(fusion["model"])[0]
 
-    dist_total_params = dist_s1_params + dist_s2_params + dist_s3_params + dist_s3_fusion_params + orig_trans_params
+    dist_total_params = dist_s1_params + dist_s2_params + dist_s3_params + dist_fusion_params + orig_trans_params
 
     print("\n==================== SIZE STATS ====================")
     print("Original full pipeline")
@@ -1363,7 +1363,7 @@ def print_size(original_net, s1_models, s2_models, s3_models, s3_fusion, args):
     print(f"  Distributed S1 params:     {dist_s1_params}")
     print(f"  PoseS2 five-branch params: {dist_s2_params}")
     print(f"  PoseS3 five-branch params: {dist_s3_params}")
-    print(f"  PoseS3 fusion params:      {dist_s3_fusion_params}")
+    print(f"  Fusion params:      {dist_fusion_params}")
     print(f"  Original Trans-B1+B2:      {orig_trans_params}")
     print(f"  Full pipeline params:      {dist_total_params}")
     print(f"  Full pipeline fp32 (MB):   {dist_total_params * 4 / (1024 ** 2):.3f}")
@@ -1383,7 +1383,7 @@ def warmup_online_models(
     s1_models,
     s2_models,
     s3_models,
-    s3_fusion,
+    fusion,
     s1_streams,
     s2_streams,
     s3_streams,
@@ -1408,7 +1408,7 @@ def warmup_online_models(
             s1_models,
             s2_models,
             s3_models,
-            s3_fusion,
+            fusion,
             s1_streams,
             s2_streams,
             s3_streams,
@@ -1430,7 +1430,7 @@ def main():
     parser.add_argument("--distributed_s1_root", type=str, default=str(POSE_S1_CHECKPOINTS_DIR))
     parser.add_argument("--pose_s2_full_root", type=str, default=str(POSE_S2_CHECKPOINTS_DIR))
     parser.add_argument("--pose_s3_five_branch_root", type=str, default=str(POSE_S3_CHECKPOINTS_DIR))
-    parser.add_argument("--pose_s3_fusion_weights", type=str, default=str(POSE_S3_FUSION_CHECKPOINT))
+    parser.add_argument("--fusion_weights", type=str, default=str(FUSION_CHECKPOINT))
 
     parser.add_argument("--evaluate_online", action="store_true")
     parser.add_argument("--num_past_frame", type=int, default=20)
@@ -1485,13 +1485,13 @@ def main():
     s1_models = load_all_distributed_s1(args.distributed_s1_root)
     s2_models = load_all_pose_s2_full(args.pose_s2_full_root)
     s3_models = load_all_pose_s3_five_branch_regions(args.pose_s3_five_branch_root)
-    s3_fusion = load_pose_s3_fusion(args.pose_s3_fusion_weights)
+    fusion = load_fusion(args.fusion_weights)
 
     s1_streams = create_streams(LEAF_ORDER, args.use_cuda_streams)
     s2_streams = create_streams(POSE_S2_BRANCH_ORDER, args.use_cuda_streams)
     s3_streams = create_streams(POSE_S3_BRANCH_ORDER, args.use_cuda_streams)
 
-    print_size(original_net, s1_models, s2_models, s3_models, s3_fusion, args)
+    print_size(original_net, s1_models, s2_models, s3_models, fusion, args)
 
     raw_paths = None
     if args.dataset_dir is not None:
@@ -1528,7 +1528,7 @@ def main():
             s1_models,
             s2_models,
             s3_models,
-            s3_fusion,
+            fusion,
             s1_streams,
             s2_streams,
             s3_streams,
@@ -1597,7 +1597,7 @@ def main():
             s1_models,
             s2_models,
             s3_models,
-            s3_fusion,
+            fusion,
         )
         synchronize()
         elapsed = time.perf_counter() - start
@@ -1657,7 +1657,7 @@ def main():
                 s1_models,
                 s2_models,
                 s3_models,
-                s3_fusion,
+                fusion,
                 s1_streams,
                 s2_streams,
                 s3_streams,

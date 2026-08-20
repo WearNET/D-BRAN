@@ -96,10 +96,10 @@ POSE_S3_CHECKPOINTS_DIR = (
     CHECKPOINTS_DIR / "dbran_pose_s3"
 )
 
-POSE_S3_FUSION_CHECKPOINT = (
+FUSION_CHECKPOINT = (
     CHECKPOINTS_DIR
-    / "dbran_pose_s3_fusion"
-    / "best_pose_s3_fusion.pth"
+    / "dbran_fusion"
+    / "best_fusion.pth"
 )
 
 # New training runs should not overwrite the final checkpoints.

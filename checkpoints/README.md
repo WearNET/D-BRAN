@@ -14,7 +14,7 @@ checkpoints/
 ├── dbran_pose_s1/
 ├── dbran_pose_s2/
 ├── dbran_pose_s3/
-├── dbran_pose_s3_fusion/
+├── dbran_fusion/
 └── retrained/                      # New training runs (gitignored, see below)
 ```
 
@@ -83,13 +83,13 @@ The final Pose-S3 configuration uses a recurrent hidden size of 16.
 ## Learned rotation fusion
 
 ```text
-checkpoints/dbran_pose_s3_fusion/
+checkpoints/dbran_fusion/
 ```
 
 Checkpoint:
 
 ```text
-best_pose_s3_fusion.pth
+best_fusion.pth
 ```
 
 The fusion network refines the assembled Pose-S3 output using a learned residual correction.
@@ -118,7 +118,7 @@ TRANSPOSE_WEIGHTS_FILE
 POSE_S1_CHECKPOINTS_DIR
 POSE_S2_CHECKPOINTS_DIR
 POSE_S3_CHECKPOINTS_DIR
-POSE_S3_FUSION_CHECKPOINT
+FUSION_CHECKPOINT
 ```
 
 Scripts should use these constants instead of hard-coded absolute paths.
@@ -146,4 +146,4 @@ python scripts/profile/profile_full_pipeline.py \
 
 `--max_sequences 1` loads every checkpoint and evaluates a single sequence, purely to confirm all branches and the fusion network load and run — not a representative evaluation. It verifies all D-BRAN pose branches, the fusion network, and the original TransPose translation modules.
 
-Each training script's argparse defaults reproduce the original D-BRAN study exactly (same hyperparameters, same data splits), so running a script without overriding its defaults is the correct way to redo a stage identically. The exception is the output path: Pose-S1 and Pose-S2 training default `--save_dir` to `checkpoints/retrained/`, so a default run never touches the validated checkpoints above. Pose-S3 and fusion training require an explicit `--save_dir`; pointing it at `checkpoints/dbran_pose_s3/` or `checkpoints/dbran_pose_s3_fusion/` overwrites the validated checkpoint currently loaded by the smoke test, so always redirect it to a new or `checkpoints/retrained/`-style directory when reproducing the study.
+Each training script's argparse defaults reproduce the original D-BRAN study exactly (same hyperparameters, same data splits), so running a script without overriding its defaults is the correct way to redo a stage identically. The exception is the output path: Pose-S1 and Pose-S2 training default `--save_dir` to `checkpoints/retrained/`, so a default run never touches the validated checkpoints above. Pose-S3 and fusion training require an explicit `--save_dir`; pointing it at `checkpoints/dbran_pose_s3/` or `checkpoints/dbran_fusion/` overwrites the validated checkpoint currently loaded by the smoke test, so always redirect it to a new or `checkpoints/retrained/`-style directory when reproducing the study.
