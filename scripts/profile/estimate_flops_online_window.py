@@ -169,10 +169,10 @@ def build_final_pose_blocks(
             )
         )
 
-    # PoseS3 learned residual fusion.
+    # Learned residual fusion.
     blocks.append(
         RNNBlock(
-            name=f"PoseS3 fusion {pose_s3_hidden}h",
+            name=f"Fusion {pose_s3_hidden}h",
             input_dim=90,
             proj_dim=pose_s3_hidden,
             hidden_dim=pose_s3_hidden,
@@ -203,6 +203,7 @@ def main() -> None:
         "PoseS1": 0,
         "PoseS2": 0,
         "PoseS3": 0,
+        "Fusion": 0,
     }
 
     print("=" * 88)
@@ -219,13 +220,15 @@ def main() -> None:
             stage_totals["PoseS2"] += flops
         elif block.name.startswith("PoseS3"):
             stage_totals["PoseS3"] += flops
+        elif block.name.startswith("Fusion"):
+            stage_totals["Fusion"] += flops
 
         print(f"{block.name:<36} {flops:>15,d}  {format_flops(flops)}")
 
     pose_pipeline_total = sum(stage_totals.values())
 
     print("-" * 88)
-    for stage_name in ["PoseS1", "PoseS2", "PoseS3"]:
+    for stage_name in ["PoseS1", "PoseS2", "PoseS3", "Fusion"]:
         value = stage_totals[stage_name]
         print(f"{stage_name:<36} {value:>15,d}  {format_flops(value)}")
     print("-" * 88)
