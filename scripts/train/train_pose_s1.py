@@ -106,7 +106,7 @@ TARGET_CONFIG = {
     },
 }
 
-TARGET_ORDER = ["left_arm", "right_arm", "left_leg", "right_leg", "head"]
+TARGET_ORDER = ["left_leg", "right_leg", "head", "left_arm", "right_arm"]
 
 
 # ------------------------------------------------------------
