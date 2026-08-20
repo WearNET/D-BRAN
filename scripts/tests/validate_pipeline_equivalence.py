@@ -2,7 +2,7 @@
 Validate that `dbran.pipeline.DBranPipeline` reproduces the current profiler.
 
 The script compares the new reusable implementation against
-`scripts/profile/profile_full_pipeline_fivebranch.py` using the same sequence
+`scripts/profile/profile_full_pipeline.py` using the same sequence
 and checkpoint files.
 """
 

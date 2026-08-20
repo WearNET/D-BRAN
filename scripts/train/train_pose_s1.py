@@ -798,8 +798,8 @@ def build_argparser():
     parser.add_argument("--val_ratio", type=float, default=VAL_RATIO)
     parser.add_argument("--seed", type=int, default=SEED)
 
-    parser.add_argument("--proj_dim", type=int, default=64)
-    parser.add_argument("--rnn_hidden", type=int, default=64)
+    parser.add_argument("--proj_dim", type=int, default=32)
+    parser.add_argument("--rnn_hidden", type=int, default=32)
     parser.add_argument("--rnn_layers", type=int, default=2)
     parser.add_argument("--dropout", type=float, default=0.2)
 

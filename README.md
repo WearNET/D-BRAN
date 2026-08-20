@@ -218,7 +218,7 @@ This installs PyTorch with CUDA 13.0 support (via `--extra-index-url https://dow
 The following command loads every checkpoint and evaluates a single sequence (`--max_sequences 1`), purely to confirm the code path runs end to end — it is not a representative evaluation:
 
 ```bash
-python scripts/profile/profile_full_pipeline_fivebranch.py \
+python scripts/profile/profile_full_pipeline.py \
   --raw_list_file data/dataset_train/test.txt \
   --max_sequences 1 \
   --profile_repeat 1
@@ -240,7 +240,7 @@ Every script under `scripts/` has a block of default CLI arguments at the top of
 ### Full offline evaluation
 
 ```bash
-python scripts/profile/profile_full_pipeline_fivebranch.py \
+python scripts/profile/profile_full_pipeline.py \
   --raw_list_file data/dataset_train/test.txt \
   --profile_repeat 1
 ```
@@ -248,7 +248,7 @@ python scripts/profile/profile_full_pipeline_fivebranch.py \
 ### Online protocol
 
 ```bash
-python scripts/profile/profile_full_pipeline_fivebranch.py \
+python scripts/profile/profile_full_pipeline.py \
   --raw_list_file data/dataset_train/test.txt \
   --evaluate_online \
   --profile_repeat 1
@@ -278,32 +278,32 @@ The staged workflow is preserved under `scripts/`.
 
 ```text
 scripts/data/prepare_pose_s1_gt.py
-scripts/train/train_pose_s1_distributed.py
-scripts/precompute/precompute_pose_s1_predictions.py
+scripts/train/train_pose_s1.py
+scripts/precompute/precompute_pose_s1.py
 ```
 
 ### Pose-S2
 
 ```text
 scripts/data/prepare_pose_s2_gt.py
-scripts/data/prepare_pose_s2_full_distributed.py
-scripts/train/train_pose_s2_full_distributed.py
-scripts/precompute/precompute_pose_s2_full_distributed_outputs.py
+scripts/data/prepare_pose_s2.py
+scripts/train/train_pose_s2.py
+scripts/precompute/precompute_pose_s2.py
 ```
 
 ### Pose-S3 and fusion
 
 ```text
-scripts/data/prepare_pose_s3_five_branch.py
-scripts/train/train_pose_s3_region.py
-scripts/precompute/precompute_pose_s3_region_outputs.py
-scripts/train/train_pose_s3_rotation_fusion.py
+scripts/data/prepare_pose_s3.py
+scripts/train/train_pose_s3.py
+scripts/precompute/precompute_pose_s3.py
+scripts/train/train_fusion.py
 ```
 
 Run any script with `--help` to inspect its current arguments:
 
 ```bash
-python scripts/train/train_pose_s2_full_distributed.py --help
+python scripts/train/train_pose_s2.py --help
 ```
 
 ---

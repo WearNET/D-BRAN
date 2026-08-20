@@ -846,8 +846,8 @@ def build_argument_parser() -> argparse.ArgumentParser:
         ),
     )
 
-    parser.add_argument("--proj_dim", type=int, default=32)
-    parser.add_argument("--rnn_hidden", type=int, default=32)
+    parser.add_argument("--proj_dim", type=int, default=16)
+    parser.add_argument("--rnn_hidden", type=int, default=16)
     parser.add_argument("--rnn_layers", type=int, default=2)
     parser.add_argument("--dropout", type=float, default=0.2)
 

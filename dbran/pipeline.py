@@ -2,7 +2,7 @@
 Reusable D-BRAN inference pipeline.
 
 This module extracts the validated five-branch D-BRAN inference path from
-`scripts/profile/profile_full_pipeline_fivebranch.py` so it can be reused by:
+`scripts/profile/profile_full_pipeline.py` so it can be reused by:
 
 - offline evaluation;
 - online/real-time inference;

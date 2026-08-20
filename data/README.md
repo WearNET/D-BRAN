@@ -166,7 +166,7 @@ data/dataset_train/test.txt
 `--max_sequences 1` restricts a run to a single sequence, purely to confirm a data-preparation or profiling script runs end to end — it is not a representative evaluation:
 
 ```bash
-python scripts/profile/profile_full_pipeline_fivebranch.py \
+python scripts/profile/profile_full_pipeline.py \
   --raw_list_file data/dataset_train/test.txt \
   --max_sequences 1
 ```

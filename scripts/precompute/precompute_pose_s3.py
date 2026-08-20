@@ -2,7 +2,7 @@
 Precompute PoseS3 five-branch outputs and assemble them into [T, 90].
 
 Input:
-    Prepared PoseS3 five-branch files from prepare_pose_s3_five_branch.py
+    Prepared PoseS3 five-branch files from prepare_pose_s3.py
 
 Output per sequence:
     pose3_assembled_pred_6d_reduced [T, 90]

@@ -138,7 +138,7 @@ This directory is excluded from Git so experimental runs do not overwrite or bec
 The complete checkpoint set can be tested with:
 
 ```bash
-python scripts/profile/profile_full_pipeline_fivebranch.py \
+python scripts/profile/profile_full_pipeline.py \
   --raw_list_file data/dataset_train/test.txt \
   --max_sequences 1 \
   --profile_repeat 1
