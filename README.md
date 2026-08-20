@@ -5,6 +5,8 @@
 
 **D-BRAN** is a distributed bidirectional recurrent architecture for full-body human pose estimation from six sparse inertial measurement units (IMUs).
 
+D-BRAN builds on the excellent work of [TransPose](https://github.com/Xinyu-Yi/TransPose) (Yi et al.), whose centralized architecture and translation modules (Trans-B1, Trans-B2) form the foundation this project extends into a distributed, branch-based design.
+
 The pose pipeline is divided into five anatomical branches that share the root IMU as a common reference. The checkpoint set contains the final Pose-S1, Pose-S2, Pose-S3, and learned rotation-fusion models.
 
 > This repository represents the validated research implementation, with a working Xsens live-capture path and an Xsens–Unity real-time demo. See [Evaluation and profiling](#evaluation-and-profiling) to reproduce the results, or run the smoke test below to verify a local setup end-to-end.
