@@ -1,12 +1,11 @@
 # D-BRAN
 
-[![Status](https://img.shields.io/badge/status-validated-brightgreen)](#overview)
 [![Framework](https://img.shields.io/badge/framework-PyTorch-ee4c2c)](https://pytorch.org/)
 [![Task](https://img.shields.io/badge/task-sparse--IMU%20pose%20estimation-blue)](#overview)
 
 **D-BRAN** is a distributed bidirectional recurrent architecture for full-body human pose estimation from six sparse inertial measurement units (IMUs).
 
-The pose pipeline is divided into five anatomical branches that share the root IMU as a common reference. The checkpoint set contains the final Pose-S1, Pose-S2, Pose-S3, and learned rotation-fusion models, together with the original TransPose translation branches.
+The pose pipeline is divided into five anatomical branches that share the root IMU as a common reference. The checkpoint set contains the final Pose-S1, Pose-S2, Pose-S3, and learned rotation-fusion models.
 
 > This repository represents the validated research implementation, with a working Xsens live-capture path and an Xsens–Unity real-time demo. See [Evaluation and profiling](#evaluation-and-profiling) to reproduce the results, or run the smoke test below to verify a local setup end-to-end.
 
