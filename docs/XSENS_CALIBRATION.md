@@ -64,7 +64,7 @@ Wait for all six sensors and start measurement mode.
 In a second PowerShell terminal:
 
 ```powershell
-conda activate TransPose
+conda activate D-BRAN
 cd C:\Users\kevin\D-BRAN
 ```
 

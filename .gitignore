@@ -59,8 +59,6 @@ ablation_test/
 
 # Local maintenance files
 dbran_inventory.txt
-.path_migration_backup_v1/
-.route_update_backup_v1/
 
 # Operating systems
 .DS_Store

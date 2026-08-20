@@ -1122,6 +1122,6 @@ if __name__ == "__main__":
         _run_exclusive_self_test()
     else:
         print(
-            "Run: python robustness_full_pipeline_hook_exclusive_burst_v3.py "
+            "Run: python robustness_full_pipeline_hook.py "
             "--self-test-exclusive"
         )

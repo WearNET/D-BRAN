@@ -20,7 +20,7 @@ Unity Humanoid avatar
 
 ```text
 scripts/xsens/run_dbran_unity.py
-unity/DbranUdpAvatarReceiver_v1.cs
+unity/DbranUdpAvatarReceiver.cs
 docs/XSENS_UNITY_INTEGRATION.md
 ```
 
@@ -30,7 +30,7 @@ docs/XSENS_UNITY_INTEGRATION.md
 2. Import an avatar with a Humanoid-compatible skeleton.
 3. Configure the model Rig as `Humanoid`.
 4. Place the avatar in a neutral T-pose.
-5. Copy `DbranUdpAvatarReceiver_v1.cs` into `Assets/Scripts/`.
+5. Copy `DbranUdpAvatarReceiver.cs` into `Assets/Scripts/`.
 6. Attach it to the avatar root GameObject containing the `Animator`.
 7. Leave the UDP port at `9764`.
 8. Start with zero smoothing, translation scale `1`, and Euler offset `(0,0,0)`.
@@ -62,7 +62,7 @@ D-BRAN UDP receiver listening on 127.0.0.1:9764.
 ### Terminal 2 — Python sender
 
 ```powershell
-conda activate TransPose
+conda activate D-BRAN
 cd C:\Users\kevin\D-BRAN
 
 python .\scripts\xsens\run_dbran_unity.py `

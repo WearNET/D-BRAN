@@ -6,8 +6,8 @@ D-BRAN Xsens integration.
 Recommended tracked files:
 
 ```text
-xsens_calibration_capture_v2.pt
-xsens_calibration_test_v2.pt
+xsens_calibration_capture.pt
+xsens_calibration_test.pt
 ```
 
 The active calibration remains at:

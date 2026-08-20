@@ -1,4 +1,4 @@
-// File: xsens_stream_bridge_v1.cpp
+// File: xsens_stream_bridge.cpp
 // Version: Six-sensor XDA synchronized acquisition with UDP streaming and CSV diagnostics
 // Update rate: 60 Hz
 // D-BRAN / TransPose order: LeftArm, RightArm, LeftLeg, RightLeg, Head, Hip

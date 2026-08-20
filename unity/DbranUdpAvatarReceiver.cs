@@ -6,7 +6,7 @@ using UnityEngine;
 
 [DisallowMultipleComponent]
 [RequireComponent(typeof(Animator))]
-public sealed class DbranUdpAvatarReceiver_v1 : MonoBehaviour
+public sealed class DbranUdpAvatarReceiver : MonoBehaviour
 {
     private const int PacketVersion = 1;
     private const int JointCount = 24;

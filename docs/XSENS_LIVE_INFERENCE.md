@@ -42,7 +42,7 @@ Wait for all six MTw sensors and begin measurement.
 In another PowerShell terminal:
 
 ```powershell
-conda activate TransPose
+conda activate D-BRAN
 cd C:\Users\kevin\D-BRAN
 
 python .\scripts\xsens\run_dbran_live.py `
@@ -51,7 +51,7 @@ python .\scripts\xsens\run_dbran_live.py `
   --countdown 8 `
   --max_frames 600 `
   --print_every 60 `
-  --save_pt .\data\logs\dbran_live_test_v1.pt
+  --save_pt .\data\logs\dbran_live_test.pt
 ```
 
 After pressing ENTER, use the eight-second countdown to adopt the neutral
