@@ -1,8 +1,9 @@
-# D-BRAN Xsens Phase 3 — Static calibration
+---
+title: "Xsens calibration"
+subtitle: "Phase 3 — Static calibration"
+---
 
-This package adds the Xsens-to-D-BRAN calibration layer to the existing
-repository. It does not create a separate Visual Studio Code project and it
-does not replace the native Xsens bridge from Phase 2.
+This package adds the Xsens-to-D-BRAN calibration layer to the existing repository. It does not create a separate Visual Studio Code project and it does not replace the native Xsens bridge.
 
 ## Installed files
 
@@ -14,15 +15,9 @@ scripts/xsens/test_xsens_calibration.py
 configs/xsens_calibration.example.json
 ```
 
-The generated calibration is written to:
+The generated calibration is written to `configs/xsens_calibration.json`.
 
-```text
-configs/xsens_calibration.json
-```
-
-That generated file is specific to the sensor assignment and physical sensor
-placement. The example JSON can be tracked in Git; the generated calibration
-should normally remain local and be recreated when sensor placement changes.
+That generated file is specific to the sensor assignment and physical sensor placement. The example JSON can be tracked in Git; the generated calibration should normally remain local and be recreated when sensor placement changes.
 
 ## Calibration model
 
@@ -81,8 +76,7 @@ python .\scripts\xsens\calibrate_xsens.py `
 
 ### Step 1: global reference
 
-Use the MTw assigned to `root`. Align its sensor-fixed axes with the D-BRAN
-body frame:
+Use the MTw assigned to `root`. Align its sensor-fixed axes with the D-BRAN body frame:
 
 ```text
 +X = subject's left
@@ -90,8 +84,7 @@ body frame:
 +Z = forward
 ```
 
-Use the sensor coordinate markings or the MT Manager coordinate display. Do
-not infer the axes only from the logo or charging position.
+Use the sensor coordinate markings or the MT Manager coordinate display. Do not infer the axes only from the logo or charging position.
 
 ### Step 2: T-pose
 
@@ -115,10 +108,7 @@ python .\scripts\xsens\test_xsens_calibration.py `
   --save_pt .\data\logs\xsens_calibration_test.pt
 ```
 
-In the same T-pose, each calibrated orientation should remain reasonably
-close to identity and each calibrated acceleration mean should remain close to
-zero. The test also verifies that `normalize_and_concat()` produces finite
-72-dimensional D-BRAN inputs.
+In the same T-pose, each calibrated orientation should remain reasonably close to identity and each calibrated acceleration mean should remain close to zero. The test also verifies that `normalize_and_concat()` produces finite 72-dimensional D-BRAN inputs.
 
 ## Git
 
