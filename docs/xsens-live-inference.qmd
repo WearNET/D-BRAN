@@ -4,16 +4,12 @@ title: "Xsens live inference"
 
 This stage connects the validated Xsens calibration directly to the reusable D-BRAN online pipeline.
 
-```text
-Six Xsens MTw sensors
-        ↓
-Native synchronized UDP bridge
-        ↓
-XsensCalibration.apply_frame()
-        ↓
-DBranPipeline.forward_online()
-        ↓
-pose [24, 3, 3] + root translation [3]
+```{mermaid}
+flowchart TD
+    A["Six Xsens MTw sensors"] --> B["Native synchronized UDP bridge"]
+    B --> C["XsensCalibration.apply_frame()"]
+    C --> D["DBranPipeline.forward_online()"]
+    D --> E["pose [24, 3, 3] + root translation [3]"]
 ```
 
 Unity is intentionally not part of this test. The objective is to validate stream integrity, calibrated model input, online inference, output rotations, translation, and the 60 Hz processing budget before introducing another software process.

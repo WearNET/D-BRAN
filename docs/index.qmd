@@ -18,31 +18,19 @@ D-BRAN estimates full-body pose using six IMUs placed on:
 
 The architecture preserves the staged pose-estimation strategy while distributing the computation across anatomical branches.
 
-```text
-Six sparse IMUs
-      │
-      ├── shared root reference
-      │
-      ├── left-leg branch
-      ├── right-leg branch
-      ├── trunk-head branch
-      ├── left-arm branch
-      └── right-arm branch
-      │
-      ▼
-Pose-S1: distributed leaf-joint position estimation
-      │
-      ▼
-Pose-S2: distributed full-joint position estimation
-      │
-      ▼
-Pose-S3: distributed reduced-joint rotation estimation
-      │
-      ▼
-Learned residual rotation fusion
-      │
-      ▼
-Full SMPL pose
+```{mermaid}
+flowchart TD
+    IMU["Six sparse IMUs"] --> ROOT["Shared root reference"]
+    ROOT --> LL["Left-leg branch"]
+    ROOT --> RL["Right-leg branch"]
+    ROOT --> TH["Trunk-head branch"]
+    ROOT --> LA["Left-arm branch"]
+    ROOT --> RA["Right-arm branch"]
+    LL & RL & TH & LA & RA --> S1["Pose-S1<br/>distributed leaf-joint position estimation"]
+    S1 --> S2["Pose-S2<br/>distributed full-joint position estimation"]
+    S2 --> S3["Pose-S3<br/>distributed reduced-joint rotation estimation"]
+    S3 --> FUSION["Learned residual rotation fusion"]
+    FUSION --> POSE["Full SMPL pose"]
 ```
 
 The original TransPose `Trans-B1` and `Trans-B2` modules are retained for translation estimation.

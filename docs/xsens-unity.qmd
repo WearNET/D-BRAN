@@ -5,18 +5,13 @@ subtitle: "Phase 5"
 
 This phase visualizes calibrated D-BRAN output on a Unity Humanoid avatar.
 
-```text
-Six Xsens MTw sensors
-        ↓
-Native synchronized bridge
-        ↓
-Xsens calibration
-        ↓
-D-BRAN online inference
-        ↓
-SMPL global rotations + root translation
-        ↓ UDP 127.0.0.1:9764
-Unity Humanoid avatar
+```{mermaid}
+flowchart TD
+    A["Six Xsens MTw sensors"] --> B["Native synchronized bridge"]
+    B --> C["Xsens calibration"]
+    C --> D["D-BRAN online inference"]
+    D --> E["SMPL global rotations + root translation"]
+    E -->|"UDP 127.0.0.1:9764"| F["Unity Humanoid avatar"]
 ```
 
 ## Files
