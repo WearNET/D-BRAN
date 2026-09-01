@@ -1,8 +1,10 @@
-# Checkpoints
+---
+title: "Checkpoints"
+---
 
 This directory contains the validated model weights used by the current D-BRAN pipeline.
 
-Unlike the datasets, the final checkpoints are tracked in this repository so the trained architecture can be evaluated without retraining every stage.
+Unlike the datasets, the final checkpoints are tracked in the repository so the trained architecture can be evaluated without retraining every stage.
 
 ## Directory structure
 
@@ -76,20 +78,13 @@ The final Pose-S2 configuration uses a recurrent hidden size of 16.
 checkpoints/dbran_pose_s3/
 ```
 
-Pose-S3 estimates reduced-joint 6D rotations through five anatomical branches.
-
-The final Pose-S3 configuration uses a recurrent hidden size of 16.
+Pose-S3 estimates reduced-joint 6D rotations through five anatomical branches. The final Pose-S3 configuration uses a recurrent hidden size of 16.
 
 ## Learned rotation fusion
 
 ```text
 checkpoints/dbran_fusion/
-```
-
-Checkpoint:
-
-```text
-best_fusion.pth
+└── best_fusion.pth
 ```
 
 The fusion network refines the assembled Pose-S3 output using a learned residual correction.
@@ -105,13 +100,7 @@ use_pose_s2_position: False
 
 ## Centralized checkpoint paths
 
-All checkpoint locations are defined in:
-
-```text
-main_path.py
-```
-
-Relevant constants:
+All checkpoint locations are defined in `main_path.py`:
 
 ```python
 TRANSPOSE_WEIGHTS_FILE
@@ -125,25 +114,8 @@ Scripts should use these constants instead of hard-coded absolute paths.
 
 ## Retraining
 
-New training runs should be saved under:
+New training runs should be saved under `checkpoints/retrained/`. This directory is excluded from Git so experimental runs do not overwrite or become confused with the validated checkpoint set.
 
-```text
-checkpoints/retrained/
-```
+Pose-S1 and Pose-S2 training default `--save_dir` to `checkpoints/retrained/`, so a default run never touches the validated checkpoints above. Pose-S3 and fusion training require an explicit `--save_dir`; pointing it at `checkpoints/dbran_pose_s3/` or `checkpoints/dbran_fusion/` overwrites the validated checkpoint, so always redirect it to a new or `checkpoints/retrained/`-style directory when reproducing the study.
 
-This directory is excluded from Git so experimental runs do not overwrite or become confused with the validated checkpoint set.
-
-## Smoke test
-
-The complete checkpoint set can be tested with:
-
-```bash
-python scripts/profile/profile_full_pipeline.py \
-  --raw_list_file data/dataset_train/test.txt \
-  --max_sequences 1 \
-  --profile_repeat 1
-```
-
-`--max_sequences 1` loads every checkpoint and evaluates a single sequence, purely to confirm all branches and the fusion network load and run — not a representative evaluation. It verifies all D-BRAN pose branches, the fusion network, and the original TransPose translation modules.
-
-Each training script's argparse defaults reproduce the original D-BRAN study exactly (same hyperparameters, same data splits), so running a script without overriding its defaults is the correct way to redo a stage identically. The exception is the output path: Pose-S1 and Pose-S2 training default `--save_dir` to `checkpoints/retrained/`, so a default run never touches the validated checkpoints above. Pose-S3 and fusion training require an explicit `--save_dir`; pointing it at `checkpoints/dbran_pose_s3/` or `checkpoints/dbran_fusion/` overwrites the validated checkpoint currently loaded by the smoke test, so always redirect it to a new or `checkpoints/retrained/`-style directory when reproducing the study.
+See [Evaluation and profiling](evaluation.qmd#smoke-test) for the smoke test that loads this whole checkpoint set and confirms it works end to end.
