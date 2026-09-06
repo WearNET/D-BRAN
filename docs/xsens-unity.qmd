@@ -3,6 +3,31 @@ title: "Xsens to Unity integration"
 subtitle: "Phase 5"
 ---
 
+> **Status note (verified against the actual code):** this repository
+> currently contains two independent, non-interoperable halves of Unity
+> integration work, not the single working pipeline this page originally
+> implied:
+>
+> - `scripts/xsens/run_dbran_unity.py` is the sender that actually runs
+>   today. It streams over **TCP port 8888** using the original TransPose
+>   Unity text protocol (`build_transpose_message`: comma-separated
+>   axis-angle and translation values as ASCII text), **not** the UDP/DBRN
+>   binary protocol documented below. It expects a Unity-side receiver
+>   compatible with that original TransPose text protocol, which is not
+>   included in this repository.
+> - `unity/DbranUdpAvatarReceiver.cs` and the "UDP packet v1" protocol
+>   documented below are a complete, working *receiver* for a
+>   D-BRAN-native binary protocol, but no Python sender implementing it
+>   exists anywhere in this repository -- `run_dbran_unity.py` does not
+>   produce these packets, and nothing else does either.
+>
+> Do not expect `run_dbran_unity.py` and `DbranUdpAvatarReceiver.cs` to
+> talk to each other out of the box; they belong to two different,
+> unfinished integration attempts. Whoever picks this up next should
+> either write a UDP/DBRN sender to match the receiver, or update the
+> receiver to speak the TCP text protocol `run_dbran_unity.py` already
+> sends.
+
 This phase visualizes calibrated D-BRAN output on a Unity Humanoid avatar.
 
 ```{mermaid}

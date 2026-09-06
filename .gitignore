@@ -73,6 +73,7 @@ sector_logs/
 # of the D-BRAN codebase itself)
 scripts/figures/
 scripts/analysis/
+scripts/robustness/
 
 # Ablation study infrastructure (useful for future publications, kept
 # local-only -- see ablation_test/README.md)
