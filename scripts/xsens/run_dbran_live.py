@@ -5,8 +5,14 @@ This is the first end-to-end live test before adding Unity:
     six Xsens MTw sensors
         -> native synchronized UDP bridge
         -> Xsens static calibration
-        -> DBranPipeline.forward_online()
+        -> DBranParallelPipeline.forward_online() (default) or
+           DBranPipeline.forward_online() (--pipeline sequential)
         -> pose [24, 3, 3] and root translation [3]
+
+By default the five anatomical pose branches each run in their own OS
+process (DBranParallelPipeline). The original single-process pipeline
+(DBranPipeline, optionally with --cuda_streams) remains available as a
+variant via --pipeline sequential.
 
 The script measures stream integrity, calibration time, inference time,
 end-to-end frame age, output validity, and the 60 Hz processing budget.
@@ -36,6 +42,7 @@ else:
 # END D-BRAN PROJECT BOOTSTRAP
 
 import argparse
+import atexit
 import socket
 import time
 from dataclasses import asdict
@@ -45,6 +52,7 @@ from typing import Dict, List, Sequence, Tuple
 import torch
 
 from dbran.pipeline import DBranPipeline
+from dbran.pipeline_parallel import DBranParallelPipeline
 from dbran.xsens.calibration import XsensCalibration
 from dbran.xsens.protocol import SENSOR_ROLES
 from dbran.xsens.receiver import XsensTorchFrame, XsensUdpReceiver
@@ -311,9 +319,25 @@ def main() -> None:
     parser.add_argument("--num_past_frame", type=int, default=20)
     parser.add_argument("--num_future_frame", type=int, default=5)
     parser.add_argument(
+        "--pipeline",
+        choices=["parallel", "sequential"],
+        default="parallel",
+        help=(
+            "parallel (default): each of the 5 pose branches runs in its own "
+            "OS process (DBranParallelPipeline). sequential: the original "
+            "single-process pipeline (DBranPipeline), kept as a variant."
+        ),
+    )
+    parser.add_argument(
+        "--worker_device",
+        type=str,
+        default=None,
+        help="Device for the 5 branch processes with --pipeline parallel. Defaults to --device.",
+    )
+    parser.add_argument(
         "--cuda_streams",
         action="store_true",
-        help="Run anatomical branches on separate CUDA streams.",
+        help="With --pipeline sequential: run anatomical branches on separate CUDA streams.",
     )
     parser.add_argument(
         "--save_pt",
@@ -364,14 +388,25 @@ def main() -> None:
     )
     print()
 
+    print(f"Pipeline:    {args.pipeline}")
     print("Loading D-BRAN checkpoints...")
-    pipeline = DBranPipeline(
-        device=device,
-        num_past_frame=args.num_past_frame,
-        num_future_frame=args.num_future_frame,
-        use_cuda_streams=args.cuda_streams,
-        verbose=True,
-    )
+    if args.pipeline == "parallel":
+        pipeline = DBranParallelPipeline(
+            device=device,
+            num_past_frame=args.num_past_frame,
+            num_future_frame=args.num_future_frame,
+            worker_device=args.worker_device,
+            verbose=True,
+        )
+        atexit.register(pipeline.shutdown)
+    else:
+        pipeline = DBranPipeline(
+            device=device,
+            num_past_frame=args.num_past_frame,
+            num_future_frame=args.num_future_frame,
+            use_cuda_streams=args.cuda_streams,
+            verbose=True,
+        )
     parameter_counts = pipeline.parameter_counts()
     print(f"[D-BRAN] Total parameters: {parameter_counts['total']:,}\n")
 

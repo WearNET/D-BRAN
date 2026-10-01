@@ -73,11 +73,7 @@ Wait for `6/6` and start measurement.
 
 ### Unity
 
-Press Play. The Console should show:
-
-```text
-D-BRAN UDP receiver listening on 127.0.0.1:9764.
-```
+Press Play in **the original TransPose Unity Example scene** (external project, not included in this repository — see the status note above). It waits for a TCP connection on port 8888; `run_dbran_unity.py` connects to it before calibration starts.
 
 ### Terminal 2 — Python sender
 
@@ -86,16 +82,15 @@ conda activate D-BRAN
 cd C:\Users\kevin\D-BRAN
 
 python .\scripts\xsens\run_dbran_unity.py `
-  --calibration .\configs\xsens_calibration.json `
   --device cuda `
-  --cuda_streams `
   --countdown 8 `
-  --max_frames 1800 `
   --print_every 120 `
   --warmup_frames 30
 ```
 
-This runs for about 30 seconds. Hold the T-pose until Python reports that the 26-frame window is ready. Then perform slow isolated movements:
+By default (`--pipeline parallel`) the five pose branches each run in their own OS process. Use `--pipeline sequential` for the original single-process pipeline instead, optionally with `--cuda_streams`.
+
+There is no `--calibration` or `--max_frames` flag: each run performs its own in-memory session calibration (global reference, then T-pose), and streaming continues until Ctrl+C. Hold the T-pose until Python reports that the 26-frame window is ready. Then perform slow isolated movements:
 
 1. left arm down and back
 2. right arm down and back

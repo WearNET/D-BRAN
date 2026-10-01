@@ -17,6 +17,11 @@ Normal workflow:
 
 The session calibration is not saved by default. Use --save_calibration only
 when a diagnostic copy is intentionally needed.
+
+By default the five anatomical pose branches each run in their own OS
+process (DBranParallelPipeline). The original single-process pipeline
+(DBranPipeline, optionally with --cuda_streams) remains available as a
+variant via --pipeline sequential.
 """
 
 from __future__ import annotations
@@ -43,6 +48,7 @@ else:
 # END D-BRAN PROJECT BOOTSTRAP
 
 import argparse
+import atexit
 import socket
 from collections import deque
 import time
@@ -53,6 +59,7 @@ import articulate.math as M
 import torch
 
 from dbran.pipeline import DBranPipeline
+from dbran.pipeline_parallel import DBranParallelPipeline
 from dbran.xsens.calibration import (
     XsensCalibration,
     rotation_capture_spread_degrees,
@@ -523,10 +530,26 @@ def main() -> None:
     parser.add_argument("--num_past_frame", type=int, default=20)
     parser.add_argument("--num_future_frame", type=int, default=5)
     parser.add_argument(
+        "--pipeline",
+        choices=["parallel", "sequential"],
+        default="parallel",
+        help=(
+            "parallel (default): each of the 5 pose branches runs in its own "
+            "OS process (DBranParallelPipeline). sequential: the original "
+            "single-process pipeline (DBranPipeline), kept as a variant."
+        ),
+    )
+    parser.add_argument(
+        "--worker_device",
+        default=None,
+        help="Device for the 5 branch processes with --pipeline parallel. Defaults to --device.",
+    )
+    parser.add_argument(
         "--cuda_streams",
         dest="cuda_streams",
         action="store_true",
         default=True,
+        help="With --pipeline sequential: run anatomical branches on separate CUDA streams.",
     )
     parser.add_argument(
         "--no_cuda_streams",
@@ -565,13 +588,24 @@ def main() -> None:
     print("Stream duration:   Continuous until Ctrl+C")
     print()
 
-    pipeline = DBranPipeline(
-        device=device,
-        num_past_frame=args.num_past_frame,
-        num_future_frame=args.num_future_frame,
-        use_cuda_streams=args.cuda_streams,
-        verbose=True,
-    )
+    print(f"Pipeline:          {args.pipeline}")
+    if args.pipeline == "parallel":
+        pipeline = DBranParallelPipeline(
+            device=device,
+            num_past_frame=args.num_past_frame,
+            num_future_frame=args.num_future_frame,
+            worker_device=args.worker_device,
+            verbose=True,
+        )
+        atexit.register(pipeline.shutdown)
+    else:
+        pipeline = DBranPipeline(
+            device=device,
+            num_past_frame=args.num_past_frame,
+            num_future_frame=args.num_future_frame,
+            use_cuda_streams=args.cuda_streams,
+            verbose=True,
+        )
     print(f"[D-BRAN] Total parameters: {pipeline.parameter_counts()['total']:,}\n")
     warm_up(pipeline, args.warmup_frames)
 
