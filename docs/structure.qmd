@@ -17,6 +17,7 @@ D-BRAN/
 ├── data/
 ├── dbran/
 │   ├── pipeline.py                 # DBranPipeline: online inference (forward_online)
+│   ├── pipeline_parallel.py        # DBranParallelPipeline: same inference, 5 branch processes
 │   └── xsens/                      # Calibration, UDP receiver, and packet protocol
 ├── docs/                           # This documentation site (Quarto)
 ├── native/
